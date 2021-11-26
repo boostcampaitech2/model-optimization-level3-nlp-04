@@ -188,7 +188,7 @@ class TorchTrainer:
                 "eval/best_F1": best_test_f1,
             })
 
-            if epoch + 1 == 10 and test_f1 < 30:
+            if epoch + 1 == 10 and best_test_f1 < 30:
                 return best_test_acc, best_test_f1
 
             if best_test_f1 > test_f1:
