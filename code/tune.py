@@ -597,9 +597,9 @@ def make_custom_configs(args):
 
         num_custom = len(glob('./configs/data/custom*'))
 
-        with open(f"configs/data/custom{num_custom}.yaml", "w") as f:
+        with open(f"./configs/data/custom{num_custom}.yaml", "w") as f:
             yaml.dump(data_config, f, default_flow_style=False)
-        with open(f"configs/model/custom{num_custom}.yaml", "w") as f:
+        with open(f"./configs/model/custom{num_custom}.yaml", "w") as f:
             yaml.dump(model_config, f, default_flow_style=False)
 
 
