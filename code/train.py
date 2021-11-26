@@ -60,7 +60,7 @@ def train(
     elif data_config['OPTIMIZER_NAME'] == 'Adam':
         optimizer = torch.optim.Adam(
             model_instance.model.parameters(), lr=data_config['LR'],
-            beta1=data_config['BETA_1'], beta2=data_config['BETA_2']
+            betas=(data_config['BETA_1'], data_config['BETA_2'])
         )
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer=optimizer,
@@ -114,14 +114,14 @@ if __name__ == "__main__":
         "--model",
         # default="configs/model/mobilenetv3.yaml",
         # default="configs/model/effnetb0.yaml",
-        default="configs/model/custom1.yaml",
+        default="configs/model/custom.yaml",
         type=str,
         help="model config",
     )
     parser.add_argument(
         "--data",
         # default="configs/data/taco.yaml",
-        default="configs/data/custom1.yaml",
+        default="configs/data/custom.yaml",
         type=str, help="data config"
     )
     parser.add_argument("--project_name", default="", type=str, help="wandb project name")

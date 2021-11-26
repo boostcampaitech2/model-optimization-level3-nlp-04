@@ -3,12 +3,15 @@
 - Contact: placidus36@gmail.com, shinn1897@makinarocks.ai
 """
 import os
+from glob import glob
 
 import optuna
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import wandb
+import yaml
 
 from src.dataloader import create_dataloader, create_tune_dataloader
 from src.model import Model
@@ -386,6 +389,8 @@ def search_optimizer(trial, model):
         choices=['Adam', 'SGD']
     )
 
+    beta1, beta2, momentum = 0, 0, 0
+
     # Optimizer args are conditional!
     if optimizer_name == 'Adam':
         # More aggressive lr!
@@ -393,13 +398,14 @@ def search_optimizer(trial, model):
         # Adam only params
         beta1 = trial.suggest_float(name='beta1', low=0.8, high=0.95)
         beta2 = trial.suggest_float(name='beta2', low=0.9, high=0.9999)
-        return optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2))
+        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2))
     elif optimizer_name == 'SGD':
         # Conservative lr!
         lr = trial.suggest_float(name='lr', low=1e-6, high=1e-4)
         # SGD only params
         momentum = trial.suggest_float(name='momentum', low=0.0, high=0.95)
-        return getattr(optim, optimizer_name)(model.parameters(), lr=lr, momentum=momentum)
+        optimizer = getattr(optim, optimizer_name)(model.parameters(), lr=lr, momentum=momentum)
+    return optimizer, lr, beta1, beta2, momentum
 
 
 def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
@@ -444,11 +450,6 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     data_config["VAL_RATIO"] = 0.8
     data_config["IMG_SIZE"] = hyperparams["IMG_SIZE"]
 
-    wandb.init(project=args.project_name,
-               config=dict(model_config, **data_config),
-               reinit=True,
-               )
-
     mean_time = check_runtime(
         model.model,
         [model_config["input_channel"]] + model_config["INPUT_SIZE"],
@@ -458,7 +459,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     train_loader, val_loader, test_loader = create_tune_dataloader(data_config)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = search_optimizer(trial, model)
+    optimizer, lr, beta1, beta2, momentum = search_optimizer(trial, model)
     # optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
@@ -467,6 +468,17 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         epochs=hyperparams["EPOCHS"],
         pct_start=0.05,
     )
+
+    data_config["LR"] = lr
+    data_config['INIT_LR'] = 0.1
+    data_config["BETA1"] = beta1
+    data_config["BETA2"] = beta2
+    data_config['FP16'] = True
+
+    wandb.init(project=args.project_name,
+               config=dict(model_config, **data_config),
+               reinit=True,
+               )
 
     trainer = TorchTrainer(
         model,
@@ -528,7 +540,70 @@ def get_best_trial_with_condition(optuna_study: optuna.study.Study) -> Dict[str,
     return best_trial_
 
 
-def tune(gpu_id, storage: str = None):
+def make_custom_configs(args):
+    api = wandb.Api()
+
+    # Project is specified by <entity/project-name>
+    runs = api.runs(f"ssp/{args.project_name}")
+
+    summary_list, config_list, name_list = [], [], []
+    for run in runs:
+        # .summary contains the output keys/values for metrics like accuracy.
+        #  We call ._json_dict to omit large files
+        summary_list.append(run.summary._json_dict)
+
+        # .config contains the hyperparameters.
+        #  We remove special values that start with _.
+        config_list.append(
+            {k: v for k, v in run.config.items()
+             if not k.startswith('_')})
+
+        # .name is the human-readable name of the run.
+        name_list.append(run.name)
+
+    runs_df = pd.DataFrame({
+        "summary": summary_list,
+        "config": config_list,
+        "name": name_list
+    })
+
+    runs_df['best_f1'] = runs_df['summary'].apply(lambda x: x.get('eval/best_F1', -1))
+
+    best_df = runs_df[runs_df.best_f1 > 0.40]
+
+    for idx, row in best_df.iterrows():
+        model_config = {
+            'input_channel': row.config['input_channel'],
+            'depth_multiple': row.config['depth_multiple'],
+            'width_multiple': row.config['width_multiple'],
+            'backbone': row.config['backbone'],
+        }
+        data_config = {
+            'DATA_PATH': row.config['DATA_PATH'],
+            'DATASET': row.config['DATASET'],
+            'IMG_SIZE': row.config['IMG_SIZE'],
+            'AUG_TRAIN': row.config['AUG_TRAIN'],
+            'AUG_TEST': row.config['AUG_TEST'],
+            'AUG_TRAIN_PARAMS': row.config['AUG_TRAIN_PARAMS'],
+            'BATCH_SIZE': row.config['BATCH_SIZE'],
+            'EPOCH': 100,
+            'VAL_RATIO': row.config['VAL_RATIO'],
+            'OPTIMIZER_NAME': row.config['OPTIMIZER_NAME'],
+            'LR': row.config['LR'],
+            'INIT_LR': row.config['INIT_LR'],
+            'MOMENTUM': row.config['MOMENTUM'],
+            'FP16': row.config['FP16'],
+        }
+
+        num_custom = len(glob('./configs/data/custom*'))
+
+        with open(f"configs/data/custom{num_custom}.yaml", "w") as f:
+            yaml.dump(data_config, f, default_flow_style=False)
+        with open(f"configs/model/custom{num_custom}.yaml", "w") as f:
+            yaml.dump(model_config, f, default_flow_style=False)
+
+
+def tune(args, gpu_id, storage: str = None):
     if not torch.cuda.is_available():
         device = torch.device("cpu")
     elif 0 <= gpu_id < torch.cuda.device_count():
@@ -547,6 +622,8 @@ def tune(gpu_id, storage: str = None):
         load_if_exists=True,
     )
     study.optimize(lambda trial: objective(trial, device), n_trials=100)
+
+    make_custom_configs(args)
 
     pruned_trials = [
         t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED
@@ -587,4 +664,4 @@ if __name__ == "__main__":
     os.environ['WANDB_WATCH'] = 'all'
     os.environ['WANDB_SILENT'] = "true"
 
-    tune(args.gpu, storage=args.storage if args.storage != "" else None)
+    tune(args, args.gpu, storage=args.storage if args.storage != "" else None)
