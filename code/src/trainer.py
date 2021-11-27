@@ -138,13 +138,46 @@ class TorchTrainer:
             for batch, (data, labels) in pbar:
                 data, labels = data.to(self.device), labels.to(self.device)
 
+                W, H = data.shape[2], data.shape[3]
+                mix_ratio_W, mix_ratio_H = np.random.beta(1, 1), np.random.beta(1, 1)
+                cut_W, cut_H = np.int(W * mix_ratio_W), np.int(H * mix_ratio_H)
+
+                rand_index_list = [torch.randperm(len(data)) for _ in range(4)]
+                rand_index_a, rand_index_b, rand_index_c, rand_index_d = rand_index_list
+                original_coor_num = np.randint(1, 5)
+                target_a, target_b, target_c, target_d = labels[rand_index_a], labels[rand_index_b], labels[rand_index_c], labels[rand_index_d]
+
+                if original_coor_num == 1:
+                    target_a = labels
+                    data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
+                    data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]
+                    data[:, :, cut_W:, :cut_H] = data[rand_index_d, :, cut_W:, :cut_H]                    
+                elif original_coor_num == 2:
+                    target_b = labels
+                    data[:, :, :cut_W, cut_H:] = data[rand_index_a, :, :cut_W, cut_H:]
+                    data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]
+                    data[:, :, cut_W:, :cut_H] = data[rand_index_d, :, cut_W:, :cut_H]                
+                elif original_coor_num == 3:
+                    target_c = labels
+                    data[:, :, :cut_W, cut_H:] = data[rand_index_a, :, :cut_W, cut_H:]
+                    data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
+                    data[:, :, cut_W:, :cut_H] = data[rand_index_d, :, cut_W:, :cut_H]                    
+                else:
+                    target_d = labels
+                    data[:, :, :cut_W, cut_H:] = data[rand_index_a, :, :cut_W, cut_H:]
+                    data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
+                    data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]                    
+
+
                 if self.scaler:
                     with torch.cuda.amp.autocast():
                         outputs = self.model(data)
                 else:
                     outputs = self.model(data)
                 outputs = torch.squeeze(outputs)
-                loss = self.criterion(outputs, labels)
+                
+                loss = self.criterion(outputs, target_a) * (cut_W * (1 - cut_H)) + self.criterion(outputs, target_b) * ((1 - cut_W) * (1 - cut_H)) \
+                       + self.criterion(outputs, target_c) * (cut_W * cut_H) + self.criterion(outputs, target_d) * ((1 - cut_W) * cut_H)
 
                 self.optimizer.zero_grad()
 
