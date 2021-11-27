@@ -1,0 +1,149 @@
+wandb_version: 1
+
+AUG_TEST:
+  desc: null
+  value: simple_augment_test
+AUG_TEST_PARAMS:
+  desc: null
+  value: null
+AUG_TRAIN:
+  desc: null
+  value: simple_augment_train
+AUG_TRAIN_PARAMS:
+  desc: null
+  value:
+    n_select: 2
+BATCH_SIZE:
+  desc: null
+  value: 16
+BETA1:
+  desc: null
+  value: 0.945538560038903
+BETA2:
+  desc: null
+  value: 0.9278057343053738
+DATASET:
+  desc: null
+  value: TACO
+DATA_PATH:
+  desc: null
+  value: /opt/ml/data
+FP16:
+  desc: null
+  value: true
+IMG_SIZE:
+  desc: null
+  value: 224
+INIT_LR:
+  desc: null
+  value: 0.1
+INPUT_SIZE:
+  desc: null
+  value:
+  - 224
+  - 224
+LR:
+  desc: null
+  value: 0.0001504637159552091
+VAL_RATIO:
+  desc: null
+  value: 0.8
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.7
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.8.5
+    start_time: 1638035727
+    t:
+      1:
+      - 1
+      - 5
+      2:
+      - 1
+      - 5
+      3:
+      - 16
+      4: 3.8.5
+      5: 0.12.7
+      8:
+      - 5
+backbone:
+  desc: null
+  value:
+  - - 2
+    - DWConv
+    - - 64
+      - 3
+      - 2
+      - null
+      - ReLU
+  - - 1
+    - Conv
+    - - 48
+      - 3
+      - 2
+      - null
+      - 1
+      - ReLU
+  - - 1
+    - MBConv
+    - - 6
+      - 80
+      - 2
+      - 3
+  - - 1
+    - InvertedResidualv2
+    - - 16
+      - 6
+      - 1
+  - - 5
+    - Conv
+    - - 48
+      - 3
+      - 2
+      - null
+      - 1
+      - Hardswish
+  - - 1
+    - DWConv
+    - - 208
+      - 5
+      - 2
+      - null
+      - Hardswish
+  - - 1
+    - Conv
+    - - 896
+      - 5
+      - 1
+      - null
+      - 1
+      - Hardswish
+  - - 1
+    - Conv
+    - - 128
+      - 1
+      - 1
+  - - 1
+    - GlobalAvgPool
+    - []
+  - - 1
+    - FixedConv
+    - - 6
+      - 1
+      - 1
+      - null
+      - 1
+      - null
+depth_multiple:
+  desc: null
+  value: 0.5
+input_channel:
+  desc: null
+  value: 3
+width_multiple:
+  desc: null
+  value: 0.25

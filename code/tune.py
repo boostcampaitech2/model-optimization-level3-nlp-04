@@ -30,7 +30,8 @@ RESULT_MODEL_PATH = "./result_model.pt" # result model will be saved in this pat
 def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     """Search hyperparam from user-specified search space."""
     epochs = trial.suggest_int("epochs", low=30, high=30, step=50)
-    img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
+    # img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
+    img_size = 224
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
     batch_size = trial.suggest_categorical("batch_size", [16, 32])
     return {
@@ -440,7 +441,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     data_config: Dict[str, Any] = {}
     data_config["DATA_PATH"] = DATA_PATH
     data_config["DATASET"] = "TACO"
-    data_config["AUG_TRAIN"] = "randaugment_train"
+    data_config["AUG_TRAIN"] = "simple_augment_train"   # "randaugment_train"
     data_config["AUG_TEST"] = "simple_augment_test"
     data_config["AUG_TRAIN_PARAMS"] = {
         "n_select": hyperparams["n_select"],
@@ -621,7 +622,7 @@ def tune(args, gpu_id, storage: str = None):
         storage=rdb_storage,
         load_if_exists=True,
     )
-    study.optimize(lambda trial: objective(trial, device), n_trials=100)
+    study.optimize(lambda trial: objective(trial, device), n_trials=1)
 
     make_custom_configs(args)
 

@@ -20,22 +20,25 @@ DATASET_NORMALIZE_INFO = {
 
 
 def simple_augment_train(
-    dataset: str = "CIFAR10", img_size: float = 32
+    dataset: str = "CIFAR10", img_size: float = 32,
+    n_select: int = 2,
+    level: int = 14,
+    n_level: int = 31,
 ) -> transforms.Compose:
     """Simple data augmentation rule for training CIFAR100."""
     return transforms.Compose(
         [
-            SquarePad(),
+            # SquarePad(),
             transforms.Resize((int(img_size * 1.2), int(img_size * 1.2))),
-            transforms.RandomResizedCrop(
-                size=img_size, ratio=(0.75, 1.0, 1.3333333333333333)
-            ),
+            # transforms.RandomResizedCrop(
+            #     size=img_size, ratio=(0.75, 1.0, 1.3333333333333333)
+            # ),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(
-                DATASET_NORMALIZE_INFO[dataset]["MEAN"],
-                DATASET_NORMALIZE_INFO[dataset]["STD"],
-            ),
+            # transforms.Normalize(
+            #     DATASET_NORMALIZE_INFO[dataset]["MEAN"],
+            #     DATASET_NORMALIZE_INFO[dataset]["STD"],
+            # ),
         ]
     )
 
