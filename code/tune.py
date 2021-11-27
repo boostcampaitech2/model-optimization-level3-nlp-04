@@ -29,7 +29,7 @@ RESULT_MODEL_PATH = "./result_model.pt" # result model will be saved in this pat
 
 def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     """Search hyperparam from user-specified search space."""
-    epochs = trial.suggest_int("epochs", low=30, high=30, step=50)
+    epochs = trial.suggest_int("epochs", low=20, high=20, step=50)  # 이거 수정했음
     img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
     batch_size = trial.suggest_categorical("batch_size", [16, 32])
@@ -407,6 +407,8 @@ def search_optimizer(trial, model):
         optimizer = getattr(optim, optimizer_name)(model.parameters(), lr=lr, momentum=momentum)
     return optimizer, lr, beta1, beta2, momentum
 
+# def search_transformation(trial: optuna.trial.Trial):
+#     transform할 애들을 골라야해
 
 def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     """Optuna objective.

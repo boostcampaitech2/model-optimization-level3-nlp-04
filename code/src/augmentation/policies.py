@@ -81,7 +81,7 @@ def randaugment_train(
         "TranslateX",
         "TranslateY",
     ]
-    return transforms.Compose(
+    return (transforms.Compose(
         [
             SquarePad(),
             transforms.Resize((img_size, img_size)),
@@ -93,5 +93,5 @@ def randaugment_train(
                 DATASET_NORMALIZE_INFO[dataset]["MEAN"],
                 DATASET_NORMALIZE_INFO[dataset]["STD"],
             ),
-        ]
+        ], RandAugmentation.get_choice())
     )
