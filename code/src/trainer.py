@@ -74,6 +74,24 @@ def _get_len_label_from_dataset(dataset: Dataset) -> int:
     else:
         raise NotImplementedError
 
+def rand_bbox(size, lam):
+    W = size[2]# M x C x W x H
+    H = size[3]
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # uniform
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
+
 
 class TorchTrainer:
     """Pytorch Trainer."""
@@ -134,16 +152,38 @@ class TorchTrainer:
             preds, gt = [], []
             pbar = tqdm(enumerate(train_dataloader), total=len(train_dataloader))
             self.model.train()
+            beta = 1.0
+            cutmix_prob = 0.5
             for batch, (data, labels) in pbar:
                 data, labels = data.to(self.device), labels.to(self.device)
 
-                if self.scaler:
-                    with torch.cuda.amp.autocast():
+                # cutmix 적용 부분
+                r = np.random.rand(1)
+                if beta > int(0.0) and r < cutmix_prob:
+                    mix_ratio = np.random.beta(beta, beta)
+                    rand_index = torch.randperm(data.size()[0]).cuda()
+                    label_a = labels
+                    label_b = labels[rand_index]
+                    bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), mix_ratio)
+                    data[:, :, bbx1:bbx2, bby1:bby2] = data[rand_index, :, bbx1:bbx2, bby1:bby2]
+                    mix_ratio = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data.size()[-1] * data.size()[-2]))
+
+                    if self.scaler:
+                        with torch.cuda.amp.autocast():
+                            outputs = self.model(data)
+                    else:
                         outputs = self.model(data)
+                    outputs = torch.squeeze(outputs)
+                    loss = self.criterion(outputs, label_a)*mix_ratio + self.criterion(outputs, label_b)*(1 - mix_ratio)
+                #cutmix 적용 안할시
                 else:
-                    outputs = self.model(data)
-                outputs = torch.squeeze(outputs)
-                loss = self.criterion(outputs, labels)
+                    if self.scaler:
+                        with torch.cuda.amp.autocast():
+                            outputs = self.model(data)
+                    else:
+                        outputs = self.model(data)
+                    outputs = torch.squeeze(outputs)
+                    loss = self.criterion(outputs, labels)
 
                 self.optimizer.zero_grad()
 
