@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import yaml
+import wandb
 
 from src.dataloader import create_dataloader
 from src.loss import CustomCriterion
@@ -29,6 +30,10 @@ def train(
     device: torch.device,
 ) -> Tuple[float, float, float]:
     """Train."""
+    wandb.init(
+        project=args.project_name,
+        reinit=True,
+    )
     # save model_config, data_config
     with open(os.path.join(log_dir, "data.yml"), "w") as f:
         yaml.dump(data_config, f, default_flow_style=False)
@@ -48,12 +53,18 @@ def train(
     train_dl, val_dl, test_dl = create_dataloader(data_config)
 
     # Create optimizer, scheduler, criterion
-    optimizer = torch.optim.SGD(
-        model_instance.model.parameters(), lr=data_config["INIT_LR"], momentum=0.9
-    )
+    if data_config['OPTIMIZER_NAME'] == 'SGD':
+        optimizer = torch.optim.SGD(
+            model_instance.model.parameters(), lr=data_config["LR"], momentum=data_config['MOMENTUM']
+        )
+    elif data_config['OPTIMIZER_NAME'] == 'Adam':
+        optimizer = torch.optim.Adam(
+            model_instance.model.parameters(), lr=data_config['LR'],
+            betas=(data_config['BETA_1'], data_config['BETA_2'])
+        )
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer=optimizer,
-        max_lr=data_config["INIT_LR"],
+        max_lr=data_config['INIT_LR'],
         steps_per_epoch=len(train_dl),
         epochs=data_config["EPOCHS"],
         pct_start=0.05,
@@ -91,6 +102,9 @@ def train(
     test_loss, test_f1, test_acc = trainer.test(
         model=model_instance.model, test_dataloader=val_dl if val_dl else test_dl
     )
+
+    wandb.join()
+
     return test_loss, test_f1, test_acc
 
 
@@ -98,13 +112,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
         "--model",
-        default="configs/model/mobilenetv3.yaml",
+        default="configs/model/example.yaml",
         type=str,
         help="model config",
     )
     parser.add_argument(
-        "--data", default="configs/data/taco.yaml", type=str, help="data config"
+        "--data", default="configs/data/test.yaml", type=str, help="data config"
     )
+    parser.add_argument("--project_name", default="", type=str, help="wandb project name")
     args = parser.parse_args()
 
     model_config = read_yaml(cfg=args.model)
