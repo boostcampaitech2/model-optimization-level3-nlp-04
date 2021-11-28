@@ -170,8 +170,9 @@ class TorchTrainer:
                     f"Loss: {(running_loss / (batch + 1)):.3f}, "
                     f"Acc: {(correct / total) * 100:.2f}% "
                     f"F1(macro): {f1_score(y_true=gt, y_pred=preds, labels=label_list, average='macro', zero_division=0):.2f}"
-                )
+                )            
             pbar.close()
+            print("여기!", train_dataloader.dataset.transform.transforms[2].get_used_augs())
 
             _, test_f1, test_acc = self.test(
                 model=self.model, test_dataloader=val_dataloader

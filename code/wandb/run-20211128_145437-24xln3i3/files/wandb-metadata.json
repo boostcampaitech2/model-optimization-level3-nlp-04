@@ -1,0 +1,27 @@
+{
+    "os": "Linux-4.4.0-59-generic-x86_64-with-debian-buster-sid",
+    "python": "3.7.11",
+    "heartbeatAt": "2021-11-28T14:54:38.994678",
+    "startedAt": "2021-11-28T14:54:37.926303",
+    "docker": null,
+    "gpu": "Tesla V100-PCIE-32GB",
+    "gpu_count": 1,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [
+        "--project_name",
+        "sejin_tmp"
+    ],
+    "state": "running",
+    "program": "tune.py",
+    "codePath": "code/tune.py",
+    "git": {
+        "remote": "https://github.com/boostcampaitech2/model-optimization-level3-nlp-04.git",
+        "commit": "3f33434813225502ad856562146ebbd23f584010"
+    },
+    "email": null,
+    "root": "/opt/ml/model-optimization-level3-nlp-04",
+    "host": "af9a595ae3de",
+    "username": "root",
+    "executable": "/opt/conda/envs/lightweight/bin/python3"
+}

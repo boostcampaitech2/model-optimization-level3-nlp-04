@@ -1,0 +1,1 @@
+{"train/epoch": 1, "train/loss": 1.615076087537359, "train/acc": 32.86372950819672, "train/F1(macro)": 0.16333191107761394, "eval/acc": 0.36775431861804225, "eval/F1(macro)": 0.15768440861557423, "eval/best_F1": -1.0, "_runtime": 40, "_timestamp": 1638111317, "_step": 0}

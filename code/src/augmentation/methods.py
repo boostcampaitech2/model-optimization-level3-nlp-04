@@ -10,6 +10,7 @@
 import random
 from abc import ABC
 from typing import List, Tuple
+import wandb
 
 from PIL.Image import Image
 
@@ -81,14 +82,18 @@ class RandAugmentation(Augmentation):
         self.n_select = n_select
         self.level = level if isinstance(level, int) and 0 <= level <= n_level else None
         self.transforms = transforms
-        self.chosen = []
+        self.used = []
 
     def __call__(self, img: Image) -> Image:
         """Run augmentations."""
         chosen_transforms = random.sample(self.transforms, k=self.n_select)
         for transf in chosen_transforms:
-            self.chosen.append(transf)
             level = self.level if self.level else random.randint(0, self.n_level)
             img = self._apply_augment(img, transf, level)
-        print(self.chosen)
+            self.used.append(transf)
+
         return img
+
+    def get_used_augs(self):
+        return self.used
+
