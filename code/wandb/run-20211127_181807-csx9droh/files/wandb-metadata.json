@@ -1,20 +1,23 @@
 {
     "os": "Linux-4.4.0-59-generic-x86_64-with-glibc2.10",
     "python": "3.8.5",
-    "heartbeatAt": "2021-11-27T14:15:31.348178",
-    "startedAt": "2021-11-27T14:15:28.341894",
+    "heartbeatAt": "2021-11-27T18:18:08.575088",
+    "startedAt": "2021-11-27T18:18:07.359650",
     "docker": null,
     "gpu": "Tesla V100-PCIE-32GB",
     "gpu_count": 1,
     "cpu_count": 8,
     "cuda": null,
-    "args": [],
+    "args": [
+        "--project_name",
+        "test_mosaic"
+    ],
     "state": "running",
-    "program": "/opt/ml/model-optimization-level3-nlp-04/code/train.py",
-    "codePath": "code/train.py",
+    "program": "tune.py",
+    "codePath": "code/tune.py",
     "git": {
         "remote": "https://github.com/boostcampaitech2/model-optimization-level3-nlp-04.git",
-        "commit": "4ddc6a1583a27e7b9ebf88aa651f32e94d421de7"
+        "commit": "3a7af11ee3e015f8ba81206181439eef6aaaa681"
     },
     "email": "inter_10@naver.com",
     "root": "/opt/ml/model-optimization-level3-nlp-04",

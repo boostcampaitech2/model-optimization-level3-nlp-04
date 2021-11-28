@@ -168,12 +168,6 @@ class TorchTrainer:
                     data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
                     data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]                    
 
-                import torchvision.transforms as transforms 
-                tf = transforms.ToPILImage() 
-                for idx, img in enumerate(data):
-                    img = tf(img.cpu()) 
-                    img.save(f'./img{idx}.png') 
-                exit()
 
                 if self.scaler:
                     with torch.cuda.amp.autocast():
@@ -181,9 +175,7 @@ class TorchTrainer:
                 else:
                     outputs = self.model(data)
                 outputs = torch.squeeze(outputs)
-                
-                loss = self.criterion(outputs, target_a) * (cut_W * (1 - cut_H)) + self.criterion(outputs, target_b) * ((1 - cut_W) * (1 - cut_H)) \
-                       + self.criterion(outputs, target_c) * (cut_W * cut_H) + self.criterion(outputs, target_d) * ((1 - cut_W) * cut_H)
+                loss = self.criterion(outputs, labels)
 
                 self.optimizer.zero_grad()
 
