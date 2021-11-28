@@ -17,7 +17,6 @@ import argparse
 import wandb
 import os
 
-EPOCH = 100
 DATA_PATH = "/opt/ml/data"  # type your data path here that contains test, train and val directories
 RESULT_MODEL_PATH = "./result_model.pt" # result model will be saved in this path
 
@@ -26,7 +25,7 @@ def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     """Search hyperparam from user-specified search space."""
     epochs = trial.suggest_int("epochs", low=20, high=20, step=20) # origin : (50, 50, 50)
     # img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
-    img_size = 224
+    img_size = 96
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
     batch_size = trial.suggest_int("batch_size", low=16, high=32, step=16)
     return {
@@ -295,7 +294,7 @@ def tune(gpu_id, storage: str = None):
         storage=rdb_storage,
         load_if_exists=True,
     )
-    study.optimize(lambda trial: objective(trial, device), n_trials=50) # origin 500
+    study.optimize(lambda trial: objective(trial, device), n_trials=100) # origin 500
 
     pruned_trials = [
         t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED

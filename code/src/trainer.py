@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
+import wandb
 from sklearn.metrics import f1_score
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
@@ -175,6 +176,21 @@ class TorchTrainer:
             _, test_f1, test_acc = self.test(
                 model=self.model, test_dataloader=val_dataloader
             )
+
+            wandb.log({
+                "train/epoch": epoch + 1,
+                "train/loss": (running_loss / (batch + 1)),
+                "train/acc": (correct / total) * 100,
+                "train/F1(macro)": f1_score(y_true=gt, y_pred=preds, labels=label_list, average='macro',
+                                            zero_division=0),
+                "eval/acc": test_acc,
+                "eval/F1(macro)": test_f1,
+                "eval/best_F1": best_test_f1,
+            })
+
+            if epoch + 1 == 10 and test_f1 < 0.38:
+                return best_test_acc, best_test_f1
+
             if best_test_f1 > test_f1:
                 continue
             best_test_acc = test_acc
