@@ -17,6 +17,8 @@ import PIL.ImageOps
 import torchvision.transforms.functional as F
 from PIL.Image import Image
 
+import albumentations
+
 from src.utils.data import get_rand_bbox_coord
 
 FILLCOLOR = (128, 128, 128)
@@ -44,6 +46,7 @@ def transforms_info() -> Dict[
         (Solarize, 256.0, 0.0),
         (Posterize, 8, 4),
         (Cutout, 0, 0.5),
+        (RandomBrightnessContrast, 0.0, 0.0),
     ]
     return {f.__name__: (f, low, high) for f, low, high in transforms_list}
 
@@ -55,7 +58,11 @@ def Identity(img: Image, _: float) -> Image:
 
 def Invert(img: Image, _: float) -> Image:
     """Invert the image."""
-    return PIL.ImageOps.invert(img)
+    imgArray = np.array(img)
+    aug = albumentations.InvertImg()
+    imgArray = aug.apply(imgArray)
+    img = PIL.Image.fromarray(imgArray)
+    return img
 
 
 def Contrast(img: Image, magnitude: float) -> Image:
@@ -65,6 +72,14 @@ def Contrast(img: Image, magnitude: float) -> Image:
     )
 
 
+def RandomBrightnessContrast(img: Image, _: float) -> Image:
+    imgArray = np.array(img)
+    aug = albumentations.RandomBrightnessContrast()
+    imgArray = aug.apply(imgArray)
+    img = PIL.Image.fromarray(imgArray)
+    return img
+
+
 def AutoContrast(img: Image, _: float) -> Image:
     """Put contrast effect on the image."""
     return PIL.ImageOps.autocontrast(img)
@@ -72,11 +87,12 @@ def AutoContrast(img: Image, _: float) -> Image:
 
 def Rotate(img: Image, magnitude: float) -> Image:
     """Rotate the image (degree)."""
-    rot = img.convert("RGBA").rotate(magnitude)
-    return PIL.Image.composite(
-        rot, PIL.Image.new("RGBA", rot.size, FILLCOLOR_RGBA), rot
-    ).convert(img.mode)
-
+    imgArray = np.array(img)
+    aug = albumentations.Rotate()
+    imgArray = aug.apply(imgArray, magnitude)
+    img = PIL.Image.fromarray(imgArray)
+    return img
+    
 
 def TranslateX(img: Image, magnitude: float) -> Image:
     """Translate the image on x-axis."""
@@ -100,9 +116,11 @@ def TranslateY(img: Image, magnitude: float) -> Image:
 
 def Sharpness(img: Image, magnitude: float) -> Image:
     """Adjust the sharpness of the image."""
-    return PIL.ImageEnhance.Sharpness(img).enhance(
-        1 + magnitude * random.choice([-1, 1])
-    )
+    imgArray = np.array(img)
+    aug = albumentations.Sharpen()
+    imgArray = aug.apply(imgArray, magnitude)
+    img = PIL.Image.fromarray(imgArray)
+    return img
 
 
 def ShearX(img: Image, magnitude: float) -> Image:
@@ -141,18 +159,33 @@ def Brightness(img: Image, magnitude: float) -> Image:
 
 def Equalize(img: Image, _: float) -> Image:
     """Equalize the image."""
-    return PIL.ImageOps.equalize(img)
+    imgArray = np.array(img)
+    aug = albumentations.Equalize()
+    imgArray = aug.apply(imgArray)
+    img = PIL.Image.fromarray(imgArray)
+    return img
 
 
 def Solarize(img: Image, magnitude: float) -> Image:
     """Solarize the image."""
-    return PIL.ImageOps.solarize(img, magnitude)
+
+    imgArray = np.array(img)
+    aug = albumentations.Solarize(magnitude)
+    imgArray = aug.apply(imgArray)
+    img = PIL.Image.fromarray(imgArray)
+    return img
 
 
 def Posterize(img: Image, magnitude: float) -> Image:
     """Posterize the image."""
-    magnitude = int(magnitude)
-    return PIL.ImageOps.posterize(img, magnitude)
+    bits = int(magnitude)
+    mask = ~(2 ** (8 - bits) - 1)
+
+    imgArray = np.array(img)
+    aug = albumentations.Posterize(num_bits = mask)
+    imgArray = aug.apply(imgArray)
+    img = PIL.Image.fromarray(imgArray)
+    return img
 
 
 def Cutout(img: Image, magnitude: float) -> Image:
