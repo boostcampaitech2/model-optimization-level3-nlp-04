@@ -30,7 +30,8 @@ RESULT_MODEL_PATH = "./result_model.pt" # result model will be saved in this pat
 def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     """Search hyperparam from user-specified search space."""
     epochs = trial.suggest_int("epochs", low=30, high=30, step=50)
-    img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
+    # img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
+    img_size = trial.suggest_categorical("img_size", [224])
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
     batch_size = trial.suggest_categorical("batch_size", [16, 32])
     return {
@@ -200,7 +201,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m4_args = [m4_kernel, m4_t, m4_c, m4_se, m4_hs, m4_stride]
     elif m4 == 'MBConv':
         m4_expand_ratio = trial.suggest_categorical("m4/expand_ratio", [1, 6])
-        m4_out_channel = trial.suggest_int("m4/out_channels", low=16, high=128, step=16)
+        m4_out_channel = trial.suggest_int("m4/out_channels", low=16, high=256, step=16)
         m4_kernel = trial.suggest_int("m4/kernel_size", low=3, high=5, step=2)
         # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
         m4_args = [m4_expand_ratio, m4_out_channel, m4_stride, m4_kernel]
@@ -251,7 +252,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m5_args = [m5_kernel, m5_t, m5_c, m5_se, m5_hs, m5_stride]
     elif m5 == 'MBConv':
         m5_expand_ratio = trial.suggest_categorical("m5/expand_ratio", [1, 6])
-        m5_out_channel = trial.suggest_int("m5/out_channels", low=16, high=128, step=16)
+        m5_out_channel = trial.suggest_int("m5/out_channels", low=16, high=256, step=16)
         m5_kernel = trial.suggest_int("m5/kernel_size", low=3, high=5, step=2)
         # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
         m5_args = [m5_expand_ratio, m5_out_channel, m5_stride, m5_kernel]
@@ -301,7 +302,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m6_args = [m6_kernel, m6_t, m6_c, m6_se, m6_hs, m6_stride]
     elif m6 == 'MBConv':
         m6_expand_ratio = trial.suggest_categorical("m6/expand_ratio", [1, 6])
-        m6_out_channel = trial.suggest_int("m6/out_channels", low=16, high=128, step=16)
+        m6_out_channel = trial.suggest_int("m6/out_channels", low=16, high=512, step=16)
         m6_kernel = trial.suggest_int("m6/kernel_size", low=3, high=5, step=2)
         # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
         m6_args = [m6_expand_ratio, m6_out_channel, m6_stride, m6_kernel]
@@ -352,7 +353,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m7_args = [m7_kernel, m7_t, m7_c, m7_se, m7_hs, m7_stride]
     elif m7 == 'MBConv':
         m7_expand_ratio = trial.suggest_categorical("m7/expand_ratio", [1, 6])
-        m7_out_channel = trial.suggest_int("m7/out_channels", low=16, high=128, step=16)
+        m7_out_channel = trial.suggest_int("m7/out_channels", low=128, high=1024, step=128)
         m7_kernel = trial.suggest_int("m7/kernel_size", low=3, high=5, step=2)
         # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
         m7_args = [m7_expand_ratio, m7_out_channel, m7_stride, m7_kernel]
@@ -405,7 +406,7 @@ def search_optimizer(trial, model):
         # SGD only params
         momentum = trial.suggest_float(name='momentum', low=0.0, high=0.95)
         optimizer = getattr(optim, optimizer_name)(model.parameters(), lr=lr, momentum=momentum)
-    return optimizer, lr, beta1, beta2, momentum
+    return optimizer, lr, beta1, beta2, momentum, optimizer_name
 
 
 def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
@@ -459,7 +460,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     train_loader, val_loader, test_loader = create_tune_dataloader(data_config)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer, lr, beta1, beta2, momentum = search_optimizer(trial, model)
+    optimizer, lr, beta1, beta2, momentum, optimizer_name = search_optimizer(trial, model)
     # optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
@@ -473,6 +474,8 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     data_config['INIT_LR'] = 0.1
     data_config["BETA1"] = beta1
     data_config["BETA2"] = beta2
+    data_config['OPTIMIZER_NAME'] = optimizer_name
+    data_config['MOMENTUM'] = momentum
     data_config['FP16'] = True
 
     wandb.init(project=args.project_name,
@@ -569,7 +572,7 @@ def make_custom_configs(args):
 
     runs_df['best_f1'] = runs_df['summary'].apply(lambda x: x.get('eval/best_F1', -1))
 
-    best_df = runs_df[runs_df.best_f1 > 0.40]
+    best_df = runs_df[runs_df.best_f1 > 0.55]
 
     for idx, row in best_df.iterrows():
         model_config = {
@@ -586,7 +589,7 @@ def make_custom_configs(args):
             'AUG_TEST': row.config['AUG_TEST'],
             'AUG_TRAIN_PARAMS': row.config['AUG_TRAIN_PARAMS'],
             'BATCH_SIZE': row.config['BATCH_SIZE'],
-            'EPOCH': 100,
+            'EPOCHS': 100,
             'VAL_RATIO': row.config['VAL_RATIO'],
             'OPTIMIZER_NAME': row.config['OPTIMIZER_NAME'],
             'LR': row.config['LR'],
@@ -663,5 +666,7 @@ if __name__ == "__main__":
     os.environ['WANDB_LOG_MODEL'] = 'true'
     os.environ['WANDB_WATCH'] = 'all'
     os.environ['WANDB_SILENT'] = "true"
+
+    # make_custom_configs(args)
 
     tune(args, args.gpu, storage=args.storage if args.storage != "" else None)

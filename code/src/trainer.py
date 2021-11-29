@@ -177,6 +177,17 @@ class TorchTrainer:
                 model=self.model, test_dataloader=val_dataloader
             )
 
+            if best_test_f1 < test_f1:
+                best_test_acc = test_acc
+                best_test_f1 = test_f1
+                print(f"Model saved. Current best test f1: {best_test_f1:.3f}")
+                save_model(
+                    model=self.model,
+                    path=self.model_path,
+                    data=data,
+                    device=self.device,
+                )
+
             wandb.log({
                 "train/epoch": epoch + 1,
                 "train/loss": (running_loss / (batch + 1)),
@@ -188,20 +199,8 @@ class TorchTrainer:
                 "eval/best_F1": best_test_f1,
             })
 
-            if epoch + 1 == 10 and best_test_f1 < 0.30:
+            if epoch + 1 == 10 and best_test_f1 < 0.40:
                 return best_test_acc, best_test_f1
-
-            if best_test_f1 > test_f1:
-                continue
-            best_test_acc = test_acc
-            best_test_f1 = test_f1
-            print(f"Model saved. Current best test f1: {best_test_f1:.3f}")
-            save_model(
-                model=self.model,
-                path=self.model_path,
-                data=data,
-                device=self.device,
-            )
 
         return best_test_acc, best_test_f1
 
