@@ -1,0 +1,31 @@
+{
+    "os": "Linux-4.4.0-59-generic-x86_64-with-debian-buster-sid",
+    "python": "3.7.11",
+    "heartbeatAt": "2021-11-29T14:06:21.714575",
+    "startedAt": "2021-11-29T14:06:20.618207",
+    "docker": null,
+    "gpu": "Tesla V100-PCIE-32GB",
+    "gpu_count": 1,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [
+        "--project_name",
+        "Best_Conv&Activation",
+        "--model",
+        "configs/model/best_model_for_test_mosaic.yaml",
+        "--data",
+        "configs/data/taco_model_for_test_mosaic.yaml"
+    ],
+    "state": "running",
+    "program": "train.py",
+    "codePath": "code/train.py",
+    "git": {
+        "remote": "https://github.com/boostcampaitech2/model-optimization-level3-nlp-04.git",
+        "commit": "5bf3b6ddc34f6504f3be9e26063811c3f28400bc"
+    },
+    "email": "inter_10@naver.com",
+    "root": "/opt/ml/model-optimization-level3-nlp-04",
+    "host": "89d91ea624a7",
+    "username": "root",
+    "executable": "/opt/conda/envs/lightweight/bin/python"
+}

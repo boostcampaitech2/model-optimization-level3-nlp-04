@@ -1,0 +1,1 @@
+{"train/epoch": 4, "train/loss": NaN, "train/acc": 7.460297131147541, "train/F1(macro)": 0.02314125101801641, "eval/acc": 0.07464977931299174, "eval/F1(macro)": 0.023154761904761904, "eval/best_F1": 0.023154761904761904, "_runtime": 346, "_timestamp": 1638195301, "_step": 3, "_wandb": {"runtime": 425}}

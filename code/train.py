@@ -30,7 +30,7 @@ def train(
     device: torch.device,
 ) -> Tuple[float, float, float]:
     """Train."""
-    wandb.init(project=args.project_name,
+    wandb.init(project=args.project_name, entity='ssp',
                reinit=True,
                )
 
@@ -55,7 +55,7 @@ def train(
     # Create optimizer, scheduler, criterion
     if data_config['OPTIMIZER_NAME'] == 'SGD':
         optimizer = torch.optim.SGD(
-            model_instance.model.parameters(), lr=data_config["LR"], momentum=data_config['MOMENTUM']
+            model_instance.model.parameters(), lr=data_config["LR"], # momentum=data_config['MOMENTUM']
         )
     elif data_config['OPTIMIZER_NAME'] == 'Adam':
         optimizer = torch.optim.Adam(
