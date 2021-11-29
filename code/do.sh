@@ -1,0 +1,5 @@
+python train.py --model "configs/model/custom5.yaml" --data "configs/data/custom5.yaml" --run_name "sm224-5"
+python train.py --model "configs/model/custom6.yaml" --data "configs/data/custom6.yaml" --run_name "sm224-6"
+python train.py --model "configs/model/custom7.yaml" --data "configs/data/custom7.yaml" --run_name "sm224-7"
+python train.py --model "configs/model/custom8.yaml" --data "configs/data/custom8.yaml" --run_name "sm224-8"
+python train.py --model "configs/model/custom9.yaml" --data "configs/data/custom9.yaml" --run_name "sm224-9"

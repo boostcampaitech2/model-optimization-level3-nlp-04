@@ -28,7 +28,7 @@ def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     # img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
     img_size = 224
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
-    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 192])
+    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
     return {
         "EPOCHS": epochs,
         "IMG_SIZE": img_size,
@@ -45,7 +45,7 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
     n_stride = 0
     MAX_NUM_STRIDE = 5
     UPPER_STRIDE = 2  # 5(224 example): 224, 112, 56, 28, 14, 7
-
+    Activation = ["Hardswish", "Swish", "LeakyReLU", "ELU", "SELU"]
     modules = {
         # 'm' : [Conv], (repeat_start, repeat_end), (channels_low, channels_high, channels_step),
         # [Activation], (kernel_low, kernel_high, kernel_step),
@@ -54,49 +54,49 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
         # (kernel3_low, kernel3_high, kernel3_step), [se3], [hs3],
         'm1': [
             ["Conv", "DWConv"], (1, 3), (16, 64, 16),
-            ["ReLU", "Hardswish"], (3, 3, 3),
+            Activation, (3, 3, 3),
             (0, 0, 1), (0, 0),
             (0, 0, 1, 1), (0, 0, 1),
             (0, 0, 1), [0], [0],
         ],
         'm2': [
             ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 128, 16),
-            ["ReLU", "Hardswish"], (1, 5, 2),
+            Activation, (1, 5, 2),
             (16, 32, 16), (1, 4),
             (1.0, 6.0, 0.1, 1), (16, 40, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm3': [
             ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 128, 16),
-            ["ReLU", "Hardswish"], (1, 5, 2),
+            Activation, (1, 5, 2),
             (8, 32, 8), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 40, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm4': [
             ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 256, 16),
-            ["ReLU", "Hardswish"], (1, 5, 2),
+            Activation, (1, 5, 2),
             (8, 64, 8), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 80, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm5': [
             ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 256, 16),
-            ["ReLU", "Hardswish"], (1, 5, 2),
+            Activation, (1, 5, 2),
             (16, 128, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (16, 80, 16),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm6': [
             ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 512, 16),
-            ["ReLU", "Hardswish"], (1, 5, 2),
+            Activation, (1, 5, 2),
             (16, 128, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (16, 160, 16),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm7': [
             ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 1024, 16),
-            ["ReLU", "Hardswish"], (1, 5, 2),
+            Activation, (1, 5, 2),
             (16, 160, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 160, 8),
             (3, 5, 2), [0, 1], [0, 1]
@@ -134,7 +134,7 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
             m_args = [m_kernel3, m_v3_t, m_v3_c, m_v3_se, m_v3_hs, m_stride]
         elif m == 'MBConv':
             m_expand_ratio = trial.suggest_categorical(module+"/expand_ratio", [1, 6])
-            m_out_channel = trial.suggest_int(module + '/out_channels', low=16, high=128, step=16)
+            # m_out_channel = trial.suggest_int(module + '/out_channels', low=16, high=128, step=16)
             # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
             m_args = [m_expand_ratio, m_out_channel, m_stride, m_kernel3]
 
@@ -182,7 +182,38 @@ def search_optimizer(trial, model):
         # SGD only params
         momentum = trial.suggest_float(name='momentum', low=0.0, high=0.95)
         optimizer = getattr(optim, optimizer_name)(model.parameters(), lr=lr, momentum=momentum)
-    return optimizer, lr, beta1, beta2, momentum
+    return optimizer_name, optimizer, lr, beta1, beta2, momentum
+
+
+def search_loss(trial):
+    class LabelSmoothingLoss(nn.Module):
+        def __init__(self, classes, smoothing=0.0, dim=-1):
+            super(LabelSmoothingLoss, self).__init__()
+            self.confidence = 1.0 - smoothing
+            self.smoothing = smoothing
+            self.cls = classes
+            self.dim = dim
+
+        def forward(self, pred, target):
+            pred = pred.log_softmax(dim=self.dim)
+            with torch.no_grad():
+                true_dist = torch.zeros_like(pred)
+                true_dist.fill_(self.smoothing / (self.cls - 1))
+                true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+            return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+
+    criterion_name = trial.suggest_categorical(
+        name='criterion',
+        choices=['CrossEntropyLoss', 'NLLLoss', 'LabelSmoothingLoss']
+    )
+    if criterion_name == 'CrossEntropyLoss':
+        criterion = nn.CrossEntropyLoss()
+    elif criterion_name == 'NLLLoss':
+        criterion = nn.NLLLoss()
+    elif criterion_name == 'LabelSmoothingLoss':
+        criterion = LabelSmoothingLoss(classes=6)
+
+    return criterion_name, criterion
 
 
 def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
@@ -235,8 +266,9 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     model_info(model, verbose=True)
     train_loader, val_loader, test_loader = create_tune_dataloader(data_config)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer, lr, beta1, beta2, momentum = search_optimizer(trial, model)
+
+    criterion_name, criterion = search_loss(trial)
+    optimizer_name, optimizer, lr, beta1, beta2, momentum = search_optimizer(trial, model)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
         max_lr=0.1,
@@ -245,6 +277,8 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         pct_start=0.05,
     )
 
+    data_config['criterion'] = criterion_name
+    data_config['optimizer'] = optimizer_name
     data_config["LR"] = lr
     data_config['INIT_LR'] = 0.1
     data_config["BETA1"] = beta1

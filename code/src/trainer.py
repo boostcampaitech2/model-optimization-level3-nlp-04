@@ -128,6 +128,7 @@ class TorchTrainer:
         self.verbose = verbose
         self.device = device
 
+
     def train(
         self,
         train_dataloader: DataLoader,
@@ -205,6 +206,9 @@ class TorchTrainer:
                 model=self.model, test_dataloader=val_dataloader
             )
 
+            best_test_acc = test_acc
+            best_test_f1 = max(best_test_f1, test_f1)
+
             wandb.log({
                 "train/epoch": epoch + 1,
                 "train/loss": (running_loss / (batch + 1)),
@@ -216,11 +220,8 @@ class TorchTrainer:
                 "eval/best_F1": best_test_f1,
             })
 
-            best_test_acc = test_acc
-            best_test_f1 = max(best_test_f1, test_f1)
-
-            if epoch + 1 == 10 and best_test_f1 < 0.38:
-                return best_test_acc, best_test_f1
+            # if epoch + 1 == 10 and best_test_f1 < 0.4:
+            #     return best_test_acc, best_test_f1
 
             if best_test_f1 != test_f1:
                 continue

@@ -28,10 +28,13 @@ def train(
     log_dir: str,
     fp16: bool,
     device: torch.device,
+    name: str,
 ) -> Tuple[float, float, float]:
     """Train."""
     wandb.init(
-        project=args.project_name,
+        entity='ssp',
+        project="Best_Conv&Activation",
+        name=name,
         reinit=True,
     )
     # save model_config, data_config
@@ -55,7 +58,7 @@ def train(
     # Create optimizer, scheduler, criterion
     if data_config['OPTIMIZER_NAME'] == 'SGD':
         optimizer = torch.optim.SGD(
-            model_instance.model.parameters(), lr=data_config["LR"], momentum=data_config['MOMENTUM']
+            model_instance.model.parameters(), lr=data_config["LR"], momentum=0.9
         )
     elif data_config['OPTIMIZER_NAME'] == 'Adam':
         optimizer = torch.optim.Adam(
@@ -69,12 +72,34 @@ def train(
         epochs=data_config["EPOCHS"],
         pct_start=0.05,
     )
-    criterion = CustomCriterion(
-        samples_per_cls=get_label_counts(data_config["DATA_PATH"])
-        if data_config["DATASET"] == "TACO"
-        else None,
-        device=device,
-    )
+
+    class LabelSmoothingLoss(nn.Module):
+        def __init__(self, classes, smoothing=0.0, dim=-1):
+            super(LabelSmoothingLoss, self).__init__()
+            self.confidence = 1.0 - smoothing
+            self.smoothing = smoothing
+            self.cls = classes
+            self.dim = dim
+
+        def forward(self, pred, target):
+            pred = pred.log_softmax(dim=self.dim)
+            with torch.no_grad():
+                true_dist = torch.zeros_like(pred)
+                true_dist.fill_(self.smoothing / (self.cls - 1))
+                true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+            return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+
+    if data_config['CRITERION_NAME'] == 'CrossEntropyLoss':
+        criterion = nn.CrossEntropyLoss()
+    elif data_config['CRITERION_NAME'] == 'LabelSmoothingLoss':
+        criterion = LabelSmoothingLoss(classes=6)
+
+    # criterion = CustomCriterion(
+    #     samples_per_cls=get_label_counts(data_config["DATA_PATH"])
+    #     if data_config["DATASET"] == "TACO"
+    #     else None,
+    #     device=device,
+    # )
     # Amp loss scaler
     scaler = (
         torch.cuda.amp.GradScaler() if fp16 and device != torch.device("cpu") else None
@@ -119,7 +144,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data", default="configs/data/test.yaml", type=str, help="data config"
     )
-    parser.add_argument("--project_name", default="", type=str, help="wandb project name")
+    parser.add_argument(
+        "--run_name", default="0", type=str
+    )
     args = parser.parse_args()
 
     model_config = read_yaml(cfg=args.model)
@@ -143,5 +170,6 @@ if __name__ == "__main__":
         log_dir=log_dir,
         fp16=data_config["FP16"],
         device=device,
+        name=args.run_name
     )
 
