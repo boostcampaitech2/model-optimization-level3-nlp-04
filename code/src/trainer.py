@@ -175,8 +175,8 @@ class TorchTrainer:
                 else:
                     outputs = self.model(data)
                 outputs = torch.squeeze(outputs)
-                loss = self.criterion(outputs, target_a) * (cut_W * (1 - cut_H)) + self.criterion(outputs, target_b) * ((1 - cut_W) * (1 - cut_H)) \
-                       + self.criterion(outputs, target_c) * (cut_W * cut_H) + self.criterion(outputs, target_d) * ((1 - cut_W) * cut_H)
+                loss = self.criterion(outputs, target_a) * (mix_ratio_W * (1 - mix_ratio_H)) + self.criterion(outputs, target_b) * ((1 - mix_ratio_W) * (1 - mix_ratio_H)) \
+                       + self.criterion(outputs, target_c) * (mix_ratio_W * mix_ratio_H) + self.criterion(outputs, target_d) * ((1 - mix_ratio_W) * mix_ratio_H)
 
                 self.optimizer.zero_grad()
 

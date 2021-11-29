@@ -1,0 +1,148 @@
+wandb_version: 1
+
+AUG_TEST:
+  desc: null
+  value: simple_augment_test
+AUG_TEST_PARAMS:
+  desc: null
+  value: null
+AUG_TRAIN:
+  desc: null
+  value: simple_augment_train
+AUG_TRAIN_PARAMS:
+  desc: null
+  value:
+    n_select: 0
+BATCH_SIZE:
+  desc: null
+  value: 16
+BETA1:
+  desc: null
+  value: 0
+BETA2:
+  desc: null
+  value: 0
+DATASET:
+  desc: null
+  value: TACO
+DATA_PATH:
+  desc: null
+  value: /opt/ml/data
+FP16:
+  desc: null
+  value: true
+IMG_SIZE:
+  desc: null
+  value: 224
+INIT_LR:
+  desc: null
+  value: 0.1
+INPUT_SIZE:
+  desc: null
+  value:
+  - 224
+  - 224
+LR:
+  desc: null
+  value: 9.157776175165055e-05
+VAL_RATIO:
+  desc: null
+  value: 0.8
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.7
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.7.11
+    start_time: 1638198007
+    t:
+      1:
+      - 1
+      - 5
+      2:
+      - 1
+      - 5
+      3:
+      - 16
+      4: 3.7.11
+      5: 0.12.7
+      8:
+      - 5
+backbone:
+  desc: null
+  value:
+  - - 1
+    - Conv
+    - - 48
+      - 3
+      - 2
+      - null
+      - 1
+      - Hardswish
+  - - 2
+    - Conv
+    - - 64
+      - 5
+      - 1
+      - null
+      - 1
+      - Hardswish
+  - - 3
+    - InvertedResidualv2
+    - - 16
+      - 2
+      - 1
+  - - 4
+    - MBConv
+    - - 6
+      - 16
+      - 2
+      - 3
+  - - 3
+    - InvertedResidualv3
+    - - 3
+      - 1.5
+      - 80
+      - 0
+      - 0
+      - 1
+  - - 4
+    - Conv
+    - - 272
+      - 3
+      - 2
+      - null
+      - 1
+      - Hardswish
+  - - 1
+    - InvertedResidualv2
+    - - 80
+      - 5
+      - 1
+  - - 1
+    - Conv
+    - - 384
+      - 1
+      - 1
+  - - 1
+    - GlobalAvgPool
+    - []
+  - - 1
+    - FixedConv
+    - - 6
+      - 1
+      - 1
+      - null
+      - 1
+      - null
+depth_multiple:
+  desc: null
+  value: 1.0
+input_channel:
+  desc: null
+  value: 3
+width_multiple:
+  desc: null
+  value: 0.75
