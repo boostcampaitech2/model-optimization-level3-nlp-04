@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import yaml
+import wandb
 
 from src.dataloader import create_dataloader
 from src.loss import CustomCriterion
@@ -27,8 +28,15 @@ def train(
     log_dir: str,
     fp16: bool,
     device: torch.device,
+    name: str,
 ) -> Tuple[float, float, float]:
     """Train."""
+    wandb.init(
+        entity='ssp',
+        project="Best_Conv&Activation",
+        name=name,
+        reinit=True,
+    )
     # save model_config, data_config
     with open(os.path.join(log_dir, "data.yml"), "w") as f:
         yaml.dump(data_config, f, default_flow_style=False)
@@ -48,22 +56,50 @@ def train(
     train_dl, val_dl, test_dl = create_dataloader(data_config)
 
     # Create optimizer, scheduler, criterion
-    optimizer = torch.optim.SGD(
-        model_instance.model.parameters(), lr=data_config["INIT_LR"], momentum=0.9
-    )
+    if data_config['OPTIMIZER_NAME'] == 'SGD':
+        optimizer = torch.optim.SGD(
+            model_instance.model.parameters(), lr=data_config["LR"], momentum=0.9
+        )
+    elif data_config['OPTIMIZER_NAME'] == 'Adam':
+        optimizer = torch.optim.Adam(
+            model_instance.model.parameters(), lr=data_config['LR'],
+            betas=(data_config['BETA_1'], data_config['BETA_2'])
+        )
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer=optimizer,
-        max_lr=data_config["INIT_LR"],
+        max_lr=data_config['INIT_LR'],
         steps_per_epoch=len(train_dl),
         epochs=data_config["EPOCHS"],
         pct_start=0.05,
     )
-    criterion = CustomCriterion(
-        samples_per_cls=get_label_counts(data_config["DATA_PATH"])
-        if data_config["DATASET"] == "TACO"
-        else None,
-        device=device,
-    )
+
+    class LabelSmoothingLoss(nn.Module):
+        def __init__(self, classes, smoothing=0.0, dim=-1):
+            super(LabelSmoothingLoss, self).__init__()
+            self.confidence = 1.0 - smoothing
+            self.smoothing = smoothing
+            self.cls = classes
+            self.dim = dim
+
+        def forward(self, pred, target):
+            pred = pred.log_softmax(dim=self.dim)
+            with torch.no_grad():
+                true_dist = torch.zeros_like(pred)
+                true_dist.fill_(self.smoothing / (self.cls - 1))
+                true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+            return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+
+    if data_config['CRITERION_NAME'] == 'CrossEntropyLoss':
+        criterion = nn.CrossEntropyLoss()
+    elif data_config['CRITERION_NAME'] == 'LabelSmoothingLoss':
+        criterion = LabelSmoothingLoss(classes=6)
+
+    # criterion = CustomCriterion(
+    #     samples_per_cls=get_label_counts(data_config["DATA_PATH"])
+    #     if data_config["DATASET"] == "TACO"
+    #     else None,
+    #     device=device,
+    # )
     # Amp loss scaler
     scaler = (
         torch.cuda.amp.GradScaler() if fp16 and device != torch.device("cpu") else None
@@ -91,6 +127,9 @@ def train(
     test_loss, test_f1, test_acc = trainer.test(
         model=model_instance.model, test_dataloader=val_dl if val_dl else test_dl
     )
+
+    wandb.join()
+
     return test_loss, test_f1, test_acc
 
 
@@ -98,12 +137,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
         "--model",
-        default="configs/model/mobilenetv3.yaml",
+        default="configs/model/example.yaml",
         type=str,
         help="model config",
     )
     parser.add_argument(
-        "--data", default="configs/data/taco.yaml", type=str, help="data config"
+        "--data", default="configs/data/test.yaml", type=str, help="data config"
+    )
+    parser.add_argument(
+        "--run_name", default="0", type=str
     )
     args = parser.parse_args()
 
@@ -128,5 +170,6 @@ if __name__ == "__main__":
         log_dir=log_dir,
         fp16=data_config["FP16"],
         device=device,
+        name=args.run_name
     )
 

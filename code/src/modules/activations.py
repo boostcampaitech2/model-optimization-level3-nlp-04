@@ -70,3 +70,69 @@ class Swish(nn.Module):
     def forward(self, x: torch.Tensor):
         """Forward."""
         return swish(x, self.inplace)
+
+
+class ELU(nn.Module):
+    """Custom hardswish to work with onnx."""
+
+    def __init__(self, inplace: bool = False):
+        """Initialize."""
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, x: torch.Tensor):
+        """Forward."""
+        return F.elu(x, inplace=self.inplace)
+
+
+class GELU(nn.Module):
+    """Custom hardswish to work with onnx."""
+
+    def __init__(self, inplace: bool = False):
+        """Initialize."""
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, x: torch.Tensor):
+        """Forward."""
+        return F.gelu(x)
+
+
+class SELU(nn.Module):
+    """Custom hardswish to work with onnx."""
+
+    def __init__(self, inplace: bool = False):
+        """Initialize."""
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, x: torch.Tensor):
+        """Forward."""
+        return F.selu(x, inplace=self.inplace)
+
+
+class CELU(nn.Module):
+    """Custom hardswish to work with onnx."""
+
+    def __init__(self, inplace: bool = False):
+        """Initialize."""
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, x: torch.Tensor):
+        """Forward."""
+        return F.celu(x, inplace=self.inplace)
+
+
+class LeakyReLU(nn.Module):
+    """Custom hardswish to work with onnx."""
+
+    def __init__(self, inplace: bool = False):
+        """Initialize."""
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, x: torch.Tensor):
+        """Forward."""
+        return F.leaky_relu(x, inplace=self.inplace)
+

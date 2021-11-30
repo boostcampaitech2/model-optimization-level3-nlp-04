@@ -9,9 +9,12 @@ import glob
 import os
 from typing import Any, Dict, List, Tuple, Union
 
+import numpy as np
 import torch
 import yaml
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, random_split
+from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision.datasets import ImageFolder, VisionDataset
 
 from src.utils.data import weights_for_balanced_classes
@@ -49,6 +52,75 @@ def create_dataloader(
         test_dataset=test_dataset,
         batch_size=config["BATCH_SIZE"],
     )
+
+
+def create_tune_dataloader(
+    config: Dict[str, Any],
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """Simple dataloader.
+    Args:
+        cfg: yaml file path or dictionary type of the data.
+    Returns:
+        train_loader
+        valid_loader
+        test_loader
+    """
+    # Data Setup
+    train_dataset, val_dataset, test_dataset = get_dataset(
+        data_path=config["DATA_PATH"],
+        dataset_name=config["DATASET"],
+        img_size=config["IMG_SIZE"],
+        val_ratio=config["VAL_RATIO"],
+        transform_train=config["AUG_TRAIN"],
+        transform_test=config["AUG_TEST"],
+        transform_train_params=config["AUG_TRAIN_PARAMS"],
+        transform_test_params=config.get("AUG_TEST_PARAMS"),
+    )
+
+    train_targets = train_dataset.targets
+    train_idx, _ = train_test_split(
+        np.arange(len(train_targets)),
+        test_size=0.5,
+        shuffle=True,
+        stratify=train_targets,
+        random_state=42,
+    )
+    train_sampler = SubsetRandomSampler(train_idx)
+
+    valid_targets = val_dataset.targets
+    valid_idx, _ = train_test_split(
+        np.arange(len(valid_targets)),
+        test_size=0.5,
+        shuffle=True,
+        stratify=valid_targets,
+        random_state=42,
+    )
+    valid_sampler = SubsetRandomSampler(valid_idx)
+
+    train_loader = DataLoader(
+        dataset=train_dataset,
+        pin_memory=(torch.cuda.is_available()),
+        batch_size=config["BATCH_SIZE"],
+        num_workers=10,
+        sampler=train_sampler,
+        drop_last=True
+    )
+    valid_loader = DataLoader(
+        dataset=val_dataset,
+        pin_memory=(torch.cuda.is_available()),
+        batch_size=config["BATCH_SIZE"],
+        num_workers=5,
+        sampler = valid_sampler,
+    )
+    test_loader = DataLoader(
+        dataset=test_dataset,
+        pin_memory=(torch.cuda.is_available()),
+        shuffle=False,
+        batch_size=config["BATCH_SIZE"],
+        num_workers=5
+    )
+
+    return train_loader, valid_loader, test_loader
 
 
 def get_dataset(

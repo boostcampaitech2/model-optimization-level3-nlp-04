@@ -105,7 +105,7 @@ def model_info(model, verbose=False):
 def check_runtime(
     model: nn.Module, img_size: List[int], device: torch.device, repeat: int = 100
 ) -> float:
-    repeat = min(repeat, 20)
+    # repeat = min(repeat, 20)
     img_tensor = torch.rand([1, *img_size]).to(device)
     measure = []
     start = torch.cuda.Event(enable_timing=True)
