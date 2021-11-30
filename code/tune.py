@@ -310,6 +310,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         steps_per_epoch=len(train_loader),
         epochs=hyperparams["EPOCHS"],
         pct_start=0.05,
+        cycle_momentum=True if optimizer_name == 'SGD' else False
     )
 
     data_config['criterion'] = criterion_name
@@ -403,7 +404,7 @@ def tune(gpu_id, storage: str = None):
         rdb_storage = None
     study = optuna.create_study(
         directions=["maximize", "minimize", "minimize"],
-        study_name="real-final-test",
+        study_name="help_me",
         sampler=sampler,
         storage="postgresql://optuna:optuna@27.96.134.91:6011/optuna",
         load_if_exists=True
@@ -449,7 +450,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Optuna tuner.")
     parser.add_argument("--gpu", default=0, type=int, help="GPU id to use")
     parser.add_argument("--storage", default="", type=str, help="Optuna database storage path.")
-    parser.add_argument("--project_name", default="real-final-test", type=str, help="wandb project name")
+    parser.add_argument("--project_name", default="help_me", type=str, help="wandb project name")
     args = parser.parse_args()
 
     assert args.project_name, "project name 을 입력해주세요."
