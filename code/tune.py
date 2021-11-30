@@ -214,7 +214,7 @@ def search_optimizer(trial, model):
         lr = trial.suggest_float(name='lr', low=1e-6, high=1e-4)
         alpha = trial.suggest_float(name='alpha', low=0.65, high=0.85)
         lambd = trial.suggest_float(name='lambd', low=1e-5, high=1e-3)
-        optimizer = optim.ASGD(model.parameter(), lr=lr, alpha=alpha, lambd=lambd)
+        optimizer = optim.ASGD(model.parameters(), lr=lr, alpha=alpha, lambd=lambd)
     return optimizer_name, optimizer, lr, beta1, beta2, momentum, eps, alpha, lambd
 
 
