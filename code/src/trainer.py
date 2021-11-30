@@ -67,7 +67,7 @@ def _get_len_label_from_dataset(dataset: Dataset) -> int:
         A number of label in set.
     """
     if isinstance(dataset, torchvision.datasets.ImageFolder) or isinstance(
-        dataset, torchvision.datasets.vision.VisionDataset
+            dataset, torchvision.datasets.vision.VisionDataset
     ):
         return len(dataset.classes)
     elif isinstance(dataset, torch.utils.data.Subset):
@@ -76,19 +76,38 @@ def _get_len_label_from_dataset(dataset: Dataset) -> int:
         raise NotImplementedError
 
 
+def rand_bbox(size, lam):
+    W = size[2]  # M x C x W x H
+    H = size[3]
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # uniform
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
+
+
 class TorchTrainer:
     """Pytorch Trainer."""
 
     def __init__(
-        self,
-        model: nn.Module,
-        criterion: nn.Module,
-        optimizer: optim.Optimizer,
-        scheduler,
-        model_path: str,
-        scaler=None,
-        device: torch.device = "cpu",
-        verbose: int = 1,
+            self,
+            model: nn.Module,
+            criterion: nn.Module,
+            optimizer: optim.Optimizer,
+            scheduler,
+            model_path: str,
+            scaler=None,
+            device: torch.device = "cpu",
+            verbose: int = 1,
     ) -> None:
         """Initialize TorchTrainer class.
 
@@ -110,10 +129,10 @@ class TorchTrainer:
         self.device = device
 
     def train(
-        self,
-        train_dataloader: DataLoader,
-        n_epoch: int,
-        val_dataloader: Optional[DataLoader] = None,
+            self,
+            train_dataloader: DataLoader,
+            n_epoch: int,
+            val_dataloader: Optional[DataLoader] = None,
     ) -> Tuple[float, float]:
         """Train model.
 
@@ -138,36 +157,14 @@ class TorchTrainer:
             for batch, (data, labels) in pbar:
                 data, labels = data.to(self.device), labels.to(self.device)
 
-                W, H = data.shape[2], data.shape[3]
-                mix_ratio_W, mix_ratio_H = np.random.beta(1, 1) / 2 + 0.25, np.random.beta(1, 1) / 2 + 0.25
-                cut_W, cut_H = np.int(W * mix_ratio_W), np.int(H * mix_ratio_H)
-
-                rand_index_list = [torch.randperm(len(data)) for _ in range(4)]
-                rand_index_a, rand_index_b, rand_index_c, rand_index_d = rand_index_list
-                original_coor_num = np.random.randint(1, 5)
-                target_a, target_b, target_c, target_d = labels[rand_index_a], labels[rand_index_b], labels[
-                    rand_index_c], labels[rand_index_d]
-
-                if original_coor_num == 1:
-                    target_a = labels
-                    data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
-                    data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]
-                    data[:, :, cut_W:, :cut_H] = data[rand_index_d, :, cut_W:, :cut_H]
-                elif original_coor_num == 2:
-                    target_b = labels
-                    data[:, :, :cut_W, cut_H:] = data[rand_index_a, :, :cut_W, cut_H:]
-                    data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]
-                    data[:, :, cut_W:, :cut_H] = data[rand_index_d, :, cut_W:, :cut_H]
-                elif original_coor_num == 3:
-                    target_c = labels
-                    data[:, :, :cut_W, cut_H:] = data[rand_index_a, :, :cut_W, cut_H:]
-                    data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
-                    data[:, :, cut_W:, :cut_H] = data[rand_index_d, :, cut_W:, :cut_H]
-                else:
-                    target_d = labels
-                    data[:, :, :cut_W, cut_H:] = data[rand_index_a, :, :cut_W, cut_H:]
-                    data[:, :, cut_W:, cut_H:] = data[rand_index_b, :, cut_W:, cut_H:]
-                    data[:, :, :cut_W, :cut_H] = data[rand_index_c, :, :cut_W, :cut_H]
+                # cutmix 적용 부분
+                mix_ratio = np.random.beta(1.0, 1.0)
+                rand_index = torch.randperm(data.size()[0]).cuda()
+                label_a = labels
+                label_b = labels[rand_index]
+                bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), mix_ratio)
+                data[:, :, bbx1:bbx2, bby1:bby2] = data[rand_index, :, bbx1:bbx2, bby1:bby2]
+                mix_ratio = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data.size()[-1] * data.size()[-2]))
 
                 if self.scaler:
                     with torch.cuda.amp.autocast():
@@ -175,10 +172,7 @@ class TorchTrainer:
                 else:
                     outputs = self.model(data)
                 outputs = torch.squeeze(outputs)
-                loss = self.criterion(outputs, target_a) * (mix_ratio_W * (1 - mix_ratio_H)) + \
-                       self.criterion(outputs, target_b) * ((1 - mix_ratio_W) * (1 - mix_ratio_H)) + \
-                       self.criterion(outputs, target_c) * (mix_ratio_W * mix_ratio_H) + \
-                       self.criterion(outputs, target_d) * ((1 - mix_ratio_W) * mix_ratio_H)
+                loss = self.criterion(outputs, label_a) * mix_ratio + self.criterion(outputs, label_b) * (1 - mix_ratio)
 
                 self.optimizer.zero_grad()
 
@@ -240,7 +234,7 @@ class TorchTrainer:
 
     @torch.no_grad()
     def test(
-        self, model: nn.Module, test_dataloader: DataLoader
+            self, model: nn.Module, test_dataloader: DataLoader
     ) -> Tuple[float, float, float]:
         """Test model.
 
@@ -297,7 +291,7 @@ class TorchTrainer:
 
 
 def count_model_params(
-    model: torch.nn.Module,
+        model: torch.nn.Module,
 ) -> int:
     """Count model's parameters"""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)

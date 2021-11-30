@@ -3,8 +3,10 @@
 - Contact: placidus36@gmail.com, shinn1897@makinarocks.ai
 """
 import os
+import random
 from glob import glob
 
+import numpy as np
 import optuna
 import pandas as pd
 import torch
@@ -12,6 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 import wandb
 import yaml
+from transformers import is_torch_available
 
 from src.dataloader import create_dataloader, create_tune_dataloader
 from src.model import Model
@@ -492,8 +495,8 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         verbose=1,
         model_path=RESULT_MODEL_PATH,
     )
-    trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
-    loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
+    best_test_acc, best_test_f1 = trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
+    # loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
     params_nums = count_model_params(model)
 
     model_info(model, verbose=True)
@@ -505,7 +508,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
 
     wandb.join()
 
-    return f1_score, params_nums, mean_time
+    return best_test_f1, params_nums, mean_time
 
 
 def get_best_trial_with_condition(optuna_study: optuna.study.Study) -> Dict[str, Any]:
@@ -617,12 +620,14 @@ def tune(args, gpu_id, storage: str = None):
     else:
         rdb_storage = None
 
+    study_name = 'automl102'
+
     if args.optuna_reset:
-        optuna.delete_study(study_name="automl101", storage=rdb_storage)
+        optuna.delete_study(study_name=study_name, storage=rdb_storage)
 
     study = optuna.create_study(
         directions=["maximize", "minimize", "minimize"],
-        study_name="automl101",
+        study_name=study_name,
         sampler=sampler,
         storage=rdb_storage,
         load_if_exists=True,
@@ -656,6 +661,23 @@ def tune(args, gpu_id, storage: str = None):
     print(best_trial)
 
 
+def set_seed(seed: int = 42):
+    """
+    seed 고정하는 함수 (random, numpy, torch)
+
+    Args:
+        seed (:obj:`int`): The seed to set.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    if is_torch_available():
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Optuna tuner.")
     parser.add_argument("--gpu", default=0, type=int, help="GPU id to use")
@@ -672,6 +694,8 @@ if __name__ == "__main__":
     os.environ['WANDB_LOG_MODEL'] = 'true'
     os.environ['WANDB_WATCH'] = 'all'
     os.environ['WANDB_SILENT'] = "true"
+
+    set_seed(42)
 
     # make_custom_configs(args)
 
