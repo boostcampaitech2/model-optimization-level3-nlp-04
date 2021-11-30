@@ -2,6 +2,8 @@
 - Author: Junghoon Kim, Jongsun Shin
 - Contact: placidus36@gmail.com, shinn1897@makinarocks.ai
 """
+import numpy as np
+import random
 import optuna
 import torch
 import torch.nn as nn
@@ -53,74 +55,84 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
         # (c2_low, c2_high, c2_step), (t2_low, t2_high),
         # (t3_low, t3_high, t3_step, t3_round), (c3_low, c3_high, c3_step),
         # (kernel3_low, kernel3_high, kernel3_step), [se3], [hs3],
+        # (mb_channels_low, mb_channels_high, mb_channels_step)
         'm1': [
             ["Conv", "DWConv"], (1, 3), (16, 64, 16),
             Activation, (3, 3, 3),
             (0, 0, 1), (0, 0),
             (0, 0, 1, 1), (0, 0, 1),
             (0, 0, 1), [0], [0],
+            (0, 0, 0)
         ],
         'm2': [
             Convolution, (1, 5), (16, 128, 16),
             Activation, (1, 5, 2),
             (16, 32, 16), (1, 4),
             (1.0, 6.0, 0.1, 1), (16, 40, 8),
-            (3, 5, 2), [0, 1], [0, 1]
+            (3, 5, 2), [0, 1], [0, 1],
+            (16, 128, 16)
         ],
         'm3': [
             Convolution, (1, 5), (16, 128, 16),
             Activation, (1, 5, 2),
             (8, 32, 8), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 40, 8),
-            (3, 5, 2), [0, 1], [0, 1]
+            (3, 5, 2), [0, 1], [0, 1],
+            (16, 128, 16)
         ],
         'm4': [
             Convolution, (1, 5), (16, 256, 16),
             Activation, (1, 5, 2),
             (8, 64, 8), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 80, 8),
-            (3, 5, 2), [0, 1], [0, 1]
+            (3, 5, 2), [0, 1], [0, 1],
+            (16, 128, 16)
         ],
         'm5': [
             Convolution, (1, 5), (16, 256, 16),
             Activation, (1, 5, 2),
             (16, 128, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (16, 80, 16),
-            (3, 5, 2), [0, 1], [0, 1]
+            (3, 5, 2), [0, 1], [0, 1],
+            (16, 256, 16)
         ],
         'm6': [
             Convolution, (1, 5), (16, 512, 16),
             Activation, (1, 5, 2),
             (16, 128, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (16, 160, 16),
-            (3, 5, 2), [0, 1], [0, 1]
+            (3, 5, 2), [0, 1], [0, 1],
+            (16, 256, 16)
         ],
         'm7': [
             Convolution, (1, 5), (16, 1024, 16),
             Activation, (1, 5, 2),
             (16, 160, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 160, 8),
-            (3, 5, 2), [0, 1], [0, 1]
+            (3, 5, 2), [0, 1], [0, 1],
+            (16, 512, 16)
         ],
     }
 
     for module, component in modules.items():
-        conv, repeat, channels, activation, kernel, c2, t2, t3, c3, kernel3, se3, hs3 = component
+        conv, repeat, channels, activation, kernel, c2, t2, t3, c3, kernel3, se3, hs3, mb_channels = component
         m = trial.suggest_categorical(module, conv)
         m_repeat = trial.suggest_int(module+'/repeat', repeat[0], repeat[1])
-        m_out_channel = trial.suggest_int(module+'/out_channels', low=channels[0], high=channels[1], step=channels[2])
         m_stride = trial.suggest_int(module+'/stride', low=1, high=UPPER_STRIDE)
         if not(int(module[1:]) & 1) and n_stride == int(module[1:]) // 2 - 1:
             m_stride = 2
-        m_kernel = trial.suggest_int(module+'/kernel_size', low=kernel[0], high=kernel[1], step=kernel[2])
-        m_kernel3 = trial.suggest_int(module + '/kernel3_size', low=kernel3[0], high=kernel3[1], step=kernel3[2])
-        m_activation = trial.suggest_categorical(module+'/activation', activation)
 
         if m == "Conv":
             # Conv args: [out_channel, kernel_size, stride, padding, groups, activation]
+            m_out_channel = trial.suggest_int(module + '/out_channels', low=channels[0], high=channels[1], step=channels[2])
+            m_kernel = trial.suggest_int(module + '/kernel_size', low=kernel[0], high=kernel[1], step=kernel[2])
+            m_activation = trial.suggest_categorical(module + '/activation', activation)
             m_args = [m_out_channel, m_kernel, m_stride, None, 1, m_activation]
         elif m == "DWConv":
             # DWConv args: [out_channel, kernel_size, stride, padding_size, activation]
+            m_out_channel = trial.suggest_int(module + '/out_channels', low=channels[0], high=channels[1], step=channels[2])
+            m_kernel = trial.suggest_int(module + '/kernel_size', low=kernel[0], high=kernel[1], step=kernel[2])
+            m_activation = trial.suggest_categorical(module + '/activation', activation)
             m_args = [m_out_channel, m_kernel, m_stride, None, m_activation]
         elif m == "InvertedResidualv2":
             m_v2_c = trial.suggest_int(module+'/v2_c', low=c2[0], high=c2[1], step=c2[2])
@@ -131,13 +143,18 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
             m_v3_c = trial.suggest_int(module+'/v3_c', low=c3[0], high=c3[1], step=8)
             m_v3_se = trial.suggest_categorical(module+'/v3_se', se3)
             m_v3_hs = trial.suggest_categorical(module+'/v3_hs', hs3)
+            m_kernel3 = trial.suggest_int(module + '/kernel3_size', low=kernel3[0], high=kernel3[1], step=kernel3[2])
             m_args = [m_kernel3, m_v3_t, m_v3_c, m_v3_se, m_v3_hs, m_stride]
         elif m == 'MBConv':
             m_expand_ratio = trial.suggest_categorical(module+"/expand_ratio", [1, 6])
+            m_out_channel = trial.suggest_int(module + '/out_channels', low=mb_channels[0], high=mb_channels[1], step=mb_channels[2])
+            m_kernel3 = trial.suggest_int(module + '/kernel3_size', low=kernel3[0], high=kernel3[1], step=kernel3[2])
             # m_out_channel = trial.suggest_int(module + '/out_channels', low=16, high=128, step=16)
             # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
             m_args = [m_expand_ratio, m_out_channel, m_stride, m_kernel3]
         elif m == "Bottleneck":
+            m_out_channel = trial.suggest_int(module + '/out_channels', low=channels[0], high=channels[1], step=channels[2])
+            m_activation = trial.suggest_categorical(module + '/activation', activation)
             m_args = [m_out_channel, True, 1, 0.5, m_activation]
 
         if not m == "Pass":
@@ -164,19 +181,28 @@ def search_optimizer(trial, model):
     # Sample optimizer
     optimizer_name = trial.suggest_categorical(
         name='optimizer',
-        choices=['Adam', 'SGD']
+        choices=['Adam', 'SGD', 'AdamW', 'ASGD']
     )
     # optimizer_name = 'Adam'
 
-    beta1, beta2, momentum = 0, 0, 0
+    beta1 = beta2 = momentum = eps = alpha = lambd = 0
 
     # Optimizer args are conditional!
-    if optimizer_name == 'Adam':
+    if optimizer_name == 'AdamW':
         # More aggressive lr!
-        lr = trial.suggest_float(name='lr', low=1e-5, high=1e-3)
+        lr = trial.suggest_float(name='lr', low=1e-6, high=1e-3)
         # Adam only params
         beta1 = trial.suggest_float(name='beta1', low=0.8, high=0.95)
         beta2 = trial.suggest_float(name='beta2', low=0.9, high=0.9999)
+        eps = trial.suggest_float(name='epsilon', low=1e-9, high=1e-7)
+        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2))
+    elif optimizer_name == 'Adam':
+        # More aggressive lr!
+        lr = trial.suggest_float(name='lr', low=1e-6, high=1e-3)
+        # Adam only params
+        beta1 = trial.suggest_float(name='beta1', low=0.8, high=0.95)
+        beta2 = trial.suggest_float(name='beta2', low=0.9, high=0.9999)
+        eps = trial.suggest_float(name='epsilon', low=1e-9, high=1e-7)
         optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2))
     elif optimizer_name == 'SGD':
         # Conservative lr!
@@ -184,7 +210,12 @@ def search_optimizer(trial, model):
         # SGD only params
         momentum = trial.suggest_float(name='momentum', low=0.0, high=0.95)
         optimizer = getattr(optim, optimizer_name)(model.parameters(), lr=lr, momentum=momentum)
-    return optimizer_name, optimizer, lr, beta1, beta2, momentum
+    elif optimizer_name == 'ASGD':
+        lr = trial.suggest_float(name='lr', low=1e-6, high=1e-4)
+        alpha = trial.suggest_float(name='alpha', low=0.65, high=0.85)
+        lambd = trial.suggest_float(name='lambd', low=1e-5, high=1e-3)
+        optimizer = optim.ASGD(model.parameter(), lr=lr, alpha=alpha, lambd=lambd)
+    return optimizer_name, optimizer, lr, beta1, beta2, momentum, eps, alpha, lambd
 
 
 def search_loss(trial):
@@ -204,9 +235,7 @@ def search_loss(trial):
                 true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
             return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
 
-    smoothing = trial.suggest_float(
-        name="smoothing", low=0.0, high=0.9
-    )
+    smoothing = 0
     criterion_name = trial.suggest_categorical(
         name='criterion',
         choices=['CrossEntropyLoss', 'LabelSmoothingLoss']
@@ -214,6 +243,9 @@ def search_loss(trial):
     if criterion_name == 'CrossEntropyLoss':
         criterion = nn.CrossEntropyLoss()
     elif criterion_name == 'LabelSmoothingLoss':
+        smoothing = trial.suggest_float(
+            name="smoothing", low=0.1, high=0.5
+        )
         criterion = LabelSmoothingLoss(classes=6, smoothing=smoothing)
 
     return criterion_name, criterion, smoothing
@@ -271,7 +303,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
 
 
     criterion_name, criterion, smoothing = search_loss(trial)
-    optimizer_name, optimizer, lr, beta1, beta2, momentum = search_optimizer(trial, model)
+    optimizer_name, optimizer, lr, beta1, beta2, momentum, eps, alpha, lambd = search_optimizer(trial, model)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
         max_lr=0.1,
@@ -289,7 +321,9 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     data_config["MOMENTUM"] = momentum
     data_config['FP16'] = True
     data_config["SMOOTHING"] = smoothing
-
+    data_config['EPSILON'] = eps
+    data_config['ALPHA'] = alpha
+    data_config['LAMBD'] = lambd
 
     wandb.init(project=args.project_name,
                entity='ssp',
@@ -307,7 +341,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         model_path=RESULT_MODEL_PATH,
     )
     best_acc, best_f1 = trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
-    loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
+    # loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
     params_nums = count_model_params(model)
 
     model_info(model, verbose=True)
@@ -319,7 +353,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
 
     wandb.join()
 
-    return f1_score, params_nums, mean_time
+    return best_f1, params_nums, mean_time
 
 
 def get_best_trial_with_condition(optuna_study: optuna.study.Study) -> Dict[str, Any]:
@@ -369,7 +403,7 @@ def tune(gpu_id, storage: str = None):
         rdb_storage = None
     study = optuna.create_study(
         directions=["maximize", "minimize", "minimize"],
-        study_name="final-test",
+        study_name="real-final-test",
         sampler=sampler,
         storage="postgresql://optuna:optuna@27.96.134.91:6011/optuna",
         load_if_exists=True
@@ -402,10 +436,20 @@ def tune(gpu_id, storage: str = None):
 
 
 if __name__ == "__main__":
+    seed = 42
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    np.random.seed(seed)
+
     parser = argparse.ArgumentParser(description="Optuna tuner.")
     parser.add_argument("--gpu", default=0, type=int, help="GPU id to use")
     parser.add_argument("--storage", default="", type=str, help="Optuna database storage path.")
-    parser.add_argument("--project_name", default="final-test", type=str, help="wandb project name")
+    parser.add_argument("--project_name", default="real-final-test", type=str, help="wandb project name")
     args = parser.parse_args()
 
     assert args.project_name, "project name 을 입력해주세요."

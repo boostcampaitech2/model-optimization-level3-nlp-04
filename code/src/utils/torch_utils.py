@@ -63,8 +63,8 @@ def save_model(model, path, data, device):
     """save model to torch script, onnx."""
     try:
         torch.save(model.state_dict(), f=path)
-        ts_path = os.path.splitext(path)[:-1][0] + ".ts"
-        convert_model_to_torchscript(model, ts_path)
+        # ts_path = os.path.splitext(path)[:-1][0] + ".ts"
+        # convert_model_to_torchscript(model, ts_path)
     except Exception:
         print("Failed to save torch")
 

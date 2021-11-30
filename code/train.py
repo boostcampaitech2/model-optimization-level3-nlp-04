@@ -58,13 +58,25 @@ def train(
     # Create optimizer, scheduler, criterion
     if data_config['OPTIMIZER_NAME'] == 'SGD':
         optimizer = torch.optim.SGD(
-            model_instance.model.parameters(), lr=data_config["LR"], momentum=0.9
+            model_instance.model.parameters(), lr=data_config["LR"], momentum=data_config["MOMENTUM"]
+        )
+    elif data_config['OPTIMIZER_NAME'] == 'ASGD':
+        optimizer = torch.optim.ASGD(
+            model_instance.model.parameters(), lr=data_config["LR"], alpha=data_config["ALPHA"], lambd=data_config['LAMBD']
         )
     elif data_config['OPTIMIZER_NAME'] == 'Adam':
         optimizer = torch.optim.Adam(
             model_instance.model.parameters(), lr=data_config['LR'],
-            betas=(data_config['BETA_1'], data_config['BETA_2'])
+            betas=(data_config['BETA_1'], data_config['BETA_2']),
+            eps=data_config['EPSILON'],
         )
+    elif data_config['OPTIMIZER_NAME'] == 'AdamW':
+        optimizer = torch.optim.AdamW(
+            model_instance.model.parameters(), lr=data_config['LR'],
+            betas=(data_config['BETA_1'], data_config['BETA_2']),
+            eps=data_config['EPSILON'],
+        )
+
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer=optimizer,
         max_lr=data_config['INIT_LR'],
@@ -92,7 +104,7 @@ def train(
     if data_config['CRITERION_NAME'] == 'CrossEntropyLoss':
         criterion = nn.CrossEntropyLoss()
     elif data_config['CRITERION_NAME'] == 'LabelSmoothingLoss':
-        criterion = LabelSmoothingLoss(classes=6)
+        criterion = LabelSmoothingLoss(classes=6, smoothing=data_config["SMOOTHING"])
 
     # criterion = CustomCriterion(
     #     samples_per_cls=get_label_counts(data_config["DATA_PATH"])
