@@ -153,7 +153,7 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
             # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
             m_args = [m_expand_ratio, m_out_channel, m_stride, m_kernel3]
         elif m == "Bottleneck":
-            m_out_channel = trial.suggest_int(module + '/out_channels', low=channels[0], high=channels[1], step=channels[2])
+            m_out_channel = trial.suggest_int(module + '/out_channels', low=mb_channels[0], high=mb_channels[1], step=mb_channels[2])
             m_activation = trial.suggest_categorical(module + '/activation', activation)
             m_args = [m_out_channel, True, 1, 0.5, m_activation]
 
@@ -195,7 +195,7 @@ def search_optimizer(trial, model):
         beta1 = trial.suggest_float(name='beta1', low=0.8, high=0.95)
         beta2 = trial.suggest_float(name='beta2', low=0.9, high=0.9999)
         eps = trial.suggest_float(name='epsilon', low=1e-9, high=1e-7)
-        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2), eps=eps)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, betas=(beta1, beta2), eps=eps)
     elif optimizer_name == 'Adam':
         # More aggressive lr!
         lr = trial.suggest_float(name='lr', low=1e-6, high=1e-3)
