@@ -24,7 +24,7 @@ RESULT_MODEL_PATH = "./result_model.pt" # result model will be saved in this pat
 
 def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     """Search hyperparam from user-specified search space."""
-    epochs = trial.suggest_int("epochs", low=20, high=20, step=20) # origin : (50, 50, 50)
+    epochs = trial.suggest_int("epochs", low=30, high=30, step=20) # origin : (50, 50, 50)
     # img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
     img_size = 224
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
@@ -45,7 +45,8 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
     n_stride = 0
     MAX_NUM_STRIDE = 5
     UPPER_STRIDE = 2  # 5(224 example): 224, 112, 56, 28, 14, 7
-    Activation = ["Hardswish", "Swish", "LeakyReLU", "ELU", "SELU"]
+    Activation = ["Hardswish", "Swish", "LeakyReLU", "ELU", "SELU", "HardSigmoid", "GELU"]
+    Convolution = ["Bottleneck", "Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
     modules = {
         # 'm' : [Conv], (repeat_start, repeat_end), (channels_low, channels_high, channels_step),
         # [Activation], (kernel_low, kernel_high, kernel_step),
@@ -60,48 +61,61 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
             (0, 0, 1), [0], [0],
         ],
         'm2': [
-            ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 128, 16),
+            Convolution, (1, 5), (16, 128, 16),
             Activation, (1, 5, 2),
             (16, 32, 16), (1, 4),
             (1.0, 6.0, 0.1, 1), (16, 40, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm3': [
-            ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 128, 16),
+            Convolution, (1, 5), (16, 128, 16),
             Activation, (1, 5, 2),
             (8, 32, 8), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 40, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm4': [
-            ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 256, 16),
+            Convolution, (1, 5), (16, 256, 16),
             Activation, (1, 5, 2),
             (8, 64, 8), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 80, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm5': [
-            ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 256, 16),
+            Convolution, (1, 5), (16, 256, 16),
             Activation, (1, 5, 2),
             (16, 128, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (16, 80, 16),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm6': [
-            ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 512, 16),
+            Convolution, (1, 5), (16, 512, 16),
             Activation, (1, 5, 2),
             (16, 128, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (16, 160, 16),
             (3, 5, 2), [0, 1], [0, 1]
         ],
         'm7': [
-            ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"], (1, 5), (16, 1024, 16),
+            Convolution, (1, 5), (16, 512, 16),
             Activation, (1, 5, 2),
             (16, 160, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 160, 8),
             (3, 5, 2), [0, 1], [0, 1]
         ],
-
+        'm8': [
+            Convolution, (1, 5), (16, 1024, 16),
+            Activation, (1, 5, 2),
+            (32, 160, 32), (1, 8),
+            (1.0, 6.0, 0.1, 1), (8, 320, 8),
+            (3, 5, 2), [0, 1], [0, 1]
+        ],
+        'm9': [
+            Convolution, (1, 5), (16, 1024, 16),
+            Activation, (1, 5, 2),
+            (32, 240, 32), (1, 8),
+            (1.0, 6.0, 0.1, 1), (16, 320, 16),
+            (3, 5, 2), [0, 1], [0, 1]
+        ],
     }
 
     for module, component in modules.items():
@@ -137,6 +151,8 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
             # m_out_channel = trial.suggest_int(module + '/out_channels', low=16, high=128, step=16)
             # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
             m_args = [m_expand_ratio, m_out_channel, m_stride, m_kernel3]
+        elif m == "Bottleneck":
+            m_args = [m_out_channel, True, 1, 0.5, m_activation]
 
         if not m == "Pass":
             if m_stride == 2:
@@ -202,18 +218,19 @@ def search_loss(trial):
                 true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
             return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
 
+    smoothing = trial.suggest_float(
+        name="smoothing", low=0.0, high=0.9
+    )
     criterion_name = trial.suggest_categorical(
         name='criterion',
-        choices=['CrossEntropyLoss', 'NLLLoss', 'LabelSmoothingLoss']
+        choices=['CrossEntropyLoss', 'LabelSmoothingLoss']
     )
     if criterion_name == 'CrossEntropyLoss':
         criterion = nn.CrossEntropyLoss()
-    elif criterion_name == 'NLLLoss':
-        criterion = nn.NLLLoss()
     elif criterion_name == 'LabelSmoothingLoss':
-        criterion = LabelSmoothingLoss(classes=6)
+        criterion = LabelSmoothingLoss(classes=6, smoothing=smoothing)
 
-    return criterion_name, criterion
+    return criterion_name, criterion, smoothing
 
 
 def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
@@ -267,7 +284,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     train_loader, val_loader, test_loader = create_tune_dataloader(data_config)
 
 
-    criterion_name, criterion = search_loss(trial)
+    criterion_name, criterion, smoothing = search_loss(trial)
     optimizer_name, optimizer, lr, beta1, beta2, momentum = search_optimizer(trial, model)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
@@ -283,7 +300,10 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
     data_config['INIT_LR'] = 0.1
     data_config["BETA1"] = beta1
     data_config["BETA2"] = beta2
+    data_config["MOMENTUM"] = momentum
     data_config['FP16'] = True
+    data_config["SMOOTHING"] = smoothing
+
 
     wandb.init(project=args.project_name,
                config=dict(model_config, **data_config),
@@ -362,12 +382,12 @@ def tune(gpu_id, storage: str = None):
         rdb_storage = None
     study = optuna.create_study(
         directions=["maximize", "minimize", "minimize"],
-        study_name="automl101",
+        study_name="final-test",
         sampler=sampler,
-        storage=rdb_storage,
-        load_if_exists=True,
+        storage="postgresql://optuna:optuna@27.96.134.91:6011/optuna",
+        load_if_exists=True
     )
-    study.optimize(lambda trial: objective(trial, device), n_trials=200) # origin 500
+    study.optimize(lambda trial: objective(trial, device), n_trials=100) # origin 500
 
     pruned_trials = [
         t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED
@@ -398,7 +418,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Optuna tuner.")
     parser.add_argument("--gpu", default=0, type=int, help="GPU id to use")
     parser.add_argument("--storage", default="", type=str, help="Optuna database storage path.")
-    parser.add_argument("--project_name", default="", type=str, help="wandb project name")
+    parser.add_argument("--project_name", default="final-test", type=str, help="wandb project name")
     args = parser.parse_args()
 
     assert args.project_name, "project name 을 입력해주세요."
