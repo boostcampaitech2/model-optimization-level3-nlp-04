@@ -127,7 +127,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--project_name", default="", type=str, help="wandb project name")
     parser.add_argument("--run_name", default="exp", type=str, help="wandb run name")
-    parser.add_argument("--log_dir", default="exp/latest", type=str, help="wandb run name")
 
     args = parser.parse_args()
 
@@ -138,7 +137,6 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     log_dir = os.environ.get("SM_MODEL_DIR", os.path.join("exp", 'latest'))
-    log_dir = os.environ.get("SM_MODEL_DIR", args.log_dir + '3')
 
     if os.path.exists(log_dir): 
         modified = datetime.fromtimestamp(os.path.getmtime(log_dir + '/best.pt'))
