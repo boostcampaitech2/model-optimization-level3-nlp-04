@@ -306,6 +306,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
 
 
     wandb.init(project=args.project_name,
+               entity='ssp',
                config=dict(model_config, **data_config),
                reinit=True,
                )
