@@ -195,7 +195,7 @@ def search_optimizer(trial, model):
         beta1 = trial.suggest_float(name='beta1', low=0.8, high=0.95)
         beta2 = trial.suggest_float(name='beta2', low=0.9, high=0.9999)
         eps = trial.suggest_float(name='epsilon', low=1e-9, high=1e-7)
-        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2))
+        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2), eps=eps)
     elif optimizer_name == 'Adam':
         # More aggressive lr!
         lr = trial.suggest_float(name='lr', low=1e-6, high=1e-3)
@@ -203,7 +203,7 @@ def search_optimizer(trial, model):
         beta1 = trial.suggest_float(name='beta1', low=0.8, high=0.95)
         beta2 = trial.suggest_float(name='beta2', low=0.9, high=0.9999)
         eps = trial.suggest_float(name='epsilon', low=1e-9, high=1e-7)
-        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2))
+        optimizer = optim.Adam(model.parameters(), lr=lr, betas=(beta1, beta2), eps=eps)
     elif optimizer_name == 'SGD':
         # Conservative lr!
         lr = trial.suggest_float(name='lr', low=1e-6, high=1e-4)
