@@ -48,7 +48,7 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
     MAX_NUM_STRIDE = 5
     UPPER_STRIDE = 2  # 5(224 example): 224, 112, 56, 28, 14, 7
     Activation = ["Hardswish", "Swish", "LeakyReLU", "ELU", "SELU", "HardSigmoid", "GELU"]
-    Convolution = ["Bottleneck", "Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+    Convolution = ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"] # "Bottleneck",
     modules = {
         # 'm' : [Conv], (repeat_start, repeat_end), (channels_low, channels_high, channels_step),
         # [Activation], (kernel_low, kernel_high, kernel_step),
