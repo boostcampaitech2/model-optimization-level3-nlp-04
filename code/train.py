@@ -126,16 +126,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
         "--model",
-        default="configs/model/model_custom8.yaml",
+        default="configs/model/custom9.yaml",
         type=str,
         help="model config",
     )
     parser.add_argument(
         "--data",
-        default="configs/data/data_custom8.yaml",
+        default="configs/data/custom9.yaml",
         type=str, help="data config"
     )
-    parser.add_argument("--project_name", default="", type=str, help="wandb project name")
+    parser.add_argument("--project_name", default="raki-final-test", type=str, help="wandb project name")
     parser.add_argument("--run_name", default="exp", type=str, help="wandb run name")
     parser.add_argument("--td", default=False, type=bool, help="whether use Tucker Decomposition")
 
