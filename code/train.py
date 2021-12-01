@@ -5,15 +5,18 @@
 
 import argparse
 import os
+import random
 from datetime import datetime
 from typing import Any, Dict, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import tensorly as tl
 import wandb
 import yaml
+from transformers import is_torch_available
 
 from src.dataloader import create_dataloader
 from src.loss import CustomCriterion
@@ -21,6 +24,23 @@ from src.model import Model
 from src.trainer import TorchTrainer
 from src.utils.common import get_label_counts, read_yaml
 from src.utils.torch_utils import check_runtime, model_info, decompose
+
+
+def set_seed(seed: int = 42):
+    """
+    seed 고정하는 함수 (random, numpy, torch)
+
+    Args:
+        seed (:obj:`int`): The seed to set.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    if is_torch_available():
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 def train(
@@ -155,6 +175,8 @@ if __name__ == "__main__":
         os.rename(log_dir, new_log_dir)
 
     os.makedirs(log_dir, exist_ok=True)
+
+    set_seed(42)
 
     test_loss, test_f1, test_acc = train(
         args=args,
