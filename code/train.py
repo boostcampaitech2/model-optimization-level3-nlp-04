@@ -11,6 +11,7 @@ from typing import Any, Dict, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import tensorly as tl
 import wandb
 import yaml
 
@@ -19,10 +20,11 @@ from src.loss import CustomCriterion
 from src.model import Model
 from src.trainer import TorchTrainer
 from src.utils.common import get_label_counts, read_yaml
-from src.utils.torch_utils import check_runtime, model_info
+from src.utils.torch_utils import check_runtime, model_info, decompose
 
 
 def train(
+    args,
     model_config: Dict[str, Any],
     data_config: Dict[str, Any],
     log_dir: str,
@@ -48,6 +50,17 @@ def train(
         model_instance.model.load_state_dict(
             torch.load(model_path, map_location=device)
         )
+
+    if args.td:
+        # switch to the PyTorch backend
+        tl.set_backend('pytorch')
+
+        for name, param in model_instance.model.named_modules():
+            if isinstance(param, nn.Conv2d):
+                param.register_buffer('rank', torch.Tensor([0.5, 0.5]))  # rank in, out
+
+        model_instance.model.features = decompose(model_instance.model.features)
+
     model_instance.model.to(device)
 
     # Create dataloader
@@ -113,20 +126,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
         "--model",
-        # default="configs/model/mobilenetv3.yaml",
-        # default="configs/model/effnetb0.yaml",
-        default="configs/model/custom.yaml",
+        default="configs/model/model_custom8.yaml",
         type=str,
         help="model config",
     )
     parser.add_argument(
         "--data",
-        # default="configs/data/taco.yaml",
-        default="configs/data/custom.yaml",
+        default="configs/data/data_custom8.yaml",
         type=str, help="data config"
     )
     parser.add_argument("--project_name", default="", type=str, help="wandb project name")
     parser.add_argument("--run_name", default="exp", type=str, help="wandb run name")
+    parser.add_argument("--td", default=False, type=bool, help="whether use Tucker Decomposition")
 
     args = parser.parse_args()
 
@@ -146,6 +157,7 @@ if __name__ == "__main__":
     os.makedirs(log_dir, exist_ok=True)
 
     test_loss, test_f1, test_acc = train(
+        args=args,
         model_config=model_config,
         data_config=data_config,
         log_dir=log_dir,
