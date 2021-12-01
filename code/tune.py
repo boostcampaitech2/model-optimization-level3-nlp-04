@@ -110,7 +110,7 @@ def search_model(trial: optuna.trial.Trial) -> List[Any]:
             (16, 160, 16), (1, 8),
             (1.0, 6.0, 0.1, 1), (8, 160, 8),
             (3, 5, 2), [0, 1], [0, 1],
-            (16, 512, 16)
+            (16, 256, 16)
         ],
     }
 
@@ -345,7 +345,6 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
 
     torch.cuda.empty_cache()
     best_acc, best_f1 = trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
-    torch.cuda.empty_cache()
 
     # loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
     params_nums = count_model_params(model)
