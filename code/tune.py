@@ -259,106 +259,107 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         float: score1(e.g. accuracy)
         int: score2(e.g. params)
     """
-    while True:
-        model_config: Dict[str, Any] = {}
-        model_config["input_channel"] = 3
-        # img_size = trial.suggest_categorical("img_size", [32, 64, 128])
-        # img_size = 32
-        # model_config["INPUT_SIZE"] = [img_size, img_size]
-        model_config["depth_multiple"] = trial.suggest_categorical(
-            "depth_multiple", [0.25, 0.5, 0.75, 1.0]
-        )
-        model_config["width_multiple"] = trial.suggest_categorical(
-            "width_multiple", [0.25, 0.5, 0.75, 1.0]
-        )
-        model_config["backbone"], module_info = search_model(trial)
-        hyperparams = search_hyperparam(trial)
 
-        model = Model(model_config, verbose=True)
-        model.to(device)
-        model.model.to(device)
+    model_config: Dict[str, Any] = {}
+    model_config["input_channel"] = 3
+    # img_size = trial.suggest_categorical("img_size", [32, 64, 128])
+    # img_size = 32
+    # model_config["INPUT_SIZE"] = [img_size, img_size]
+    model_config["depth_multiple"] = trial.suggest_categorical(
+        "depth_multiple", [0.25, 0.5, 0.75, 1.0]
+    )
+    model_config["width_multiple"] = trial.suggest_categorical(
+        "width_multiple", [0.25, 0.5, 0.75, 1.0]
+    )
+    model_config["backbone"], module_info = search_model(trial)
+    hyperparams = search_hyperparam(trial)
 
-        # check ./data_configs/data.yaml for config information
-        data_config: Dict[str, Any] = {}
-        data_config["DATA_PATH"] = DATA_PATH
-        data_config["DATASET"] = "TACO"
-        data_config["AUG_TRAIN"] = "randaugment_train"
-        data_config["AUG_TEST"] = "simple_augment_test"
-        data_config["AUG_TRAIN_PARAMS"] = {
-            "n_select": hyperparams["n_select"],
-        }
-        data_config["AUG_TEST_PARAMS"] = None
-        data_config["BATCH_SIZE"] = hyperparams["BATCH_SIZE"]
-        data_config["VAL_RATIO"] = 0.8
-        data_config["IMG_SIZE"] = hyperparams["IMG_SIZE"]
+    model = Model(model_config, verbose=True)
+    model.to(device)
+    model.model.to(device)
 
-        model_config["INPUT_SIZE"] = [data_config["IMG_SIZE"]] * 2
+    # check ./data_configs/data.yaml for config information
+    data_config: Dict[str, Any] = {}
+    data_config["DATA_PATH"] = DATA_PATH
+    data_config["DATASET"] = "TACO"
+    data_config["AUG_TRAIN"] = "randaugment_train"
+    data_config["AUG_TEST"] = "simple_augment_test"
+    data_config["AUG_TRAIN_PARAMS"] = {
+        "n_select": hyperparams["n_select"],
+    }
+    data_config["AUG_TEST_PARAMS"] = None
+    data_config["BATCH_SIZE"] = hyperparams["BATCH_SIZE"]
+    data_config["VAL_RATIO"] = 0.8
+    data_config["IMG_SIZE"] = hyperparams["IMG_SIZE"]
 
-        mean_time = check_runtime(
-            model.model,
-            [model_config["input_channel"]] + model_config["INPUT_SIZE"],
-            device,
-        )
-        model_info(model, verbose=True)
-        train_loader, val_loader, test_loader = create_tune_dataloader(data_config)
+    model_config["INPUT_SIZE"] = [data_config["IMG_SIZE"]] * 2
+
+    mean_time = check_runtime(
+        model.model,
+        [model_config["input_channel"]] + model_config["INPUT_SIZE"],
+        device,
+    )
+    model_info(model, verbose=True)
+    train_loader, val_loader, test_loader = create_tune_dataloader(data_config)
 
 
-        criterion_name, criterion, smoothing = search_loss(trial)
-        optimizer_name, optimizer, lr, beta1, beta2, momentum, eps, alpha, lambd = search_optimizer(trial, model)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=0.1,
-            steps_per_epoch=len(train_loader),
-            epochs=hyperparams["EPOCHS"],
-            pct_start=0.05,
-            cycle_momentum=True if optimizer_name == 'SGD' else False
-        )
+    criterion_name, criterion, smoothing = search_loss(trial)
+    optimizer_name, optimizer, lr, beta1, beta2, momentum, eps, alpha, lambd = search_optimizer(trial, model)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=0.1,
+        steps_per_epoch=len(train_loader),
+        epochs=hyperparams["EPOCHS"],
+        pct_start=0.05,
+        cycle_momentum=True if optimizer_name == 'SGD' else False
+    )
 
-        data_config['criterion'] = criterion_name
-        data_config['optimizer'] = optimizer_name
-        data_config["LR"] = lr
-        data_config['INIT_LR'] = 0.1
-        data_config["BETA1"] = beta1
-        data_config["BETA2"] = beta2
-        data_config["MOMENTUM"] = momentum
-        data_config['FP16'] = True
-        data_config["SMOOTHING"] = smoothing
-        data_config['EPSILON'] = eps
-        data_config['ALPHA'] = alpha
-        data_config['LAMBD'] = lambd
+    data_config['criterion'] = criterion_name
+    data_config['optimizer'] = optimizer_name
+    data_config["LR"] = lr
+    data_config['INIT_LR'] = 0.1
+    data_config["BETA1"] = beta1
+    data_config["BETA2"] = beta2
+    data_config["MOMENTUM"] = momentum
+    data_config['FP16'] = True
+    data_config["SMOOTHING"] = smoothing
+    data_config['EPSILON'] = eps
+    data_config['ALPHA'] = alpha
+    data_config['LAMBD'] = lambd
 
-        wandb.init(project=args.project_name,
-                   entity='ssp',
-                   config=dict(model_config, **data_config),
-                   reinit=True,
-                   )
+    wandb.init(project=args.project_name,
+               entity='ssp',
+               config=dict(model_config, **data_config),
+               reinit=True,
+               )
 
-        trainer = TorchTrainer(
-            model,
-            criterion,
-            optimizer,
-            scheduler,
-            device=device,
-            verbose=1,
-            model_path=RESULT_MODEL_PATH,
-        )
-        try:
-            best_acc, best_f1 = trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
-        except:
-            continue
-        # loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
-        params_nums = count_model_params(model)
+    trainer = TorchTrainer(
+        model,
+        criterion,
+        optimizer,
+        scheduler,
+        device=device,
+        verbose=1,
+        model_path=RESULT_MODEL_PATH,
+    )
 
-        model_info(model, verbose=True)
+    torch.cuda.empty_cache()
+    best_acc, best_f1 = trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
+    torch.cuda.empty_cache()
 
-        wandb.log({
-            'mean_time': mean_time,
-            'params_num': params_nums,
-        })
+    # loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
+    params_nums = count_model_params(model)
 
-        wandb.join()
+    model_info(model, verbose=True)
 
-        return best_f1, params_nums, mean_time
+    wandb.log({
+        'mean_time': mean_time,
+        'params_num': params_nums,
+    })
+
+    wandb.join()
+
+    return best_f1, params_nums, mean_time
 
 
 def get_best_trial_with_condition(optuna_study: optuna.study.Study) -> Dict[str, Any]:
