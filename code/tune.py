@@ -32,11 +32,10 @@ RESULT_MODEL_PATH = "./result_model.pt" # result model will be saved in this pat
 
 def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     """Search hyperparam from user-specified search space."""
-    epochs = trial.suggest_int("epochs", low=30, high=30, step=50)
-    # img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
-    img_size = trial.suggest_categorical("img_size", [224])
+    epochs = trial.suggest_int("epochs", low=50, high=50, step=50)
+    img_size = trial.suggest_categorical("img_size", [96, 112, 168, 224])
     n_select = trial.suggest_int("n_select", low=0, high=6, step=2)
-    batch_size = trial.suggest_categorical("batch_size", [16, 32])
+    batch_size = trial.suggest_int("batch_size", low=16, high=32, step=16)
     return {
         "EPOCHS": epochs,
         "IMG_SIZE": img_size,
@@ -45,7 +44,7 @@ def search_hyperparam(trial: optuna.trial.Trial) -> Dict[str, Any]:
     }
 
 
-def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
+def search_model(trial: optuna.trial.Trial) -> List[Any]:
     """Search model structure from user-specified search space."""
     model = []
     n_stride = 0
@@ -71,7 +70,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
 
     # Module 2
     m2 = trial.suggest_categorical(
-        "m2", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+        "m2", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "Pass"]
     )
     m2_args = []
     m2_repeat = trial.suggest_int("m2/repeat", 1, 5)
@@ -106,11 +105,6 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m2_hs = trial.suggest_categorical("m2/v3_hs", [0, 1])
         # k t c SE HS s
         m2_args = [m2_kernel, m2_t, m2_c, m2_se, m2_hs, m2_stride]
-    elif m2 == 'MBConv':
-        m2_expand_ratio = trial.suggest_categorical("m2/expand_ratio", [1, 6])
-        m2_kernel = trial.suggest_int("m2/kernel_size", low=3, high=5, step=2)
-        # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
-        m2_args = [m2_expand_ratio, m2_out_channel, m2_stride, m2_kernel]
     if not m2 == "Pass":
         if m2_stride == 2:
             n_stride += 1
@@ -120,7 +114,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
 
     # Module 3
     m3 = trial.suggest_categorical(
-        "m3", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+        "m3", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "Pass"]
     )
     m3_args = []
     m3_repeat = trial.suggest_int("m3/repeat", 1, 5)
@@ -152,12 +146,6 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m3_se = trial.suggest_categorical("m3/v3_se", [0, 1])
         m3_hs = trial.suggest_categorical("m3/v3_hs", [0, 1])
         m3_args = [m3_kernel, m3_t, m3_c, m3_se, m3_hs, m3_stride]
-    elif m3 == 'MBConv':
-        m3_expand_ratio = trial.suggest_categorical("m3/expand_ratio", [1, 6])
-        m3_out_channel = trial.suggest_int("m3/out_channels", low=16, high=128, step=16)
-        m3_kernel = trial.suggest_int("m3/kernel_size", low=3, high=5, step=2)
-        # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
-        m3_args = [m3_expand_ratio, m3_out_channel, m3_stride, m3_kernel]
     if not m3 == "Pass":
         if m3_stride == 2:
             n_stride += 1
@@ -167,7 +155,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
 
     # Module 4
     m4 = trial.suggest_categorical(
-        "m4", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+        "m4", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "Pass"]
     )
     m4_args = []
     m4_repeat = trial.suggest_int("m4/repeat", 1, 5)
@@ -202,12 +190,6 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m4_se = trial.suggest_categorical("m4/v3_se", [0, 1])
         m4_hs = trial.suggest_categorical("m4/v3_hs", [0, 1])
         m4_args = [m4_kernel, m4_t, m4_c, m4_se, m4_hs, m4_stride]
-    elif m4 == 'MBConv':
-        m4_expand_ratio = trial.suggest_categorical("m4/expand_ratio", [1, 6])
-        m4_out_channel = trial.suggest_int("m4/out_channels", low=16, high=256, step=16)
-        m4_kernel = trial.suggest_int("m4/kernel_size", low=3, high=5, step=2)
-        # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
-        m4_args = [m4_expand_ratio, m4_out_channel, m4_stride, m4_kernel]
     if not m4 == "Pass":
         if m4_stride == 2:
             n_stride += 1
@@ -217,7 +199,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
 
     # Module 5
     m5 = trial.suggest_categorical(
-        "m5", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+        "m5", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "Pass"]
     )
     m5_args = []
     m5_repeat = trial.suggest_int("m5/repeat", 1, 5)
@@ -253,12 +235,6 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m5_hs = trial.suggest_categorical("m5/v3_hs", [0, 1])
         m5_stride = trial.suggest_int("m5/stride", low=1, high=UPPER_STRIDE)
         m5_args = [m5_kernel, m5_t, m5_c, m5_se, m5_hs, m5_stride]
-    elif m5 == 'MBConv':
-        m5_expand_ratio = trial.suggest_categorical("m5/expand_ratio", [1, 6])
-        m5_out_channel = trial.suggest_int("m5/out_channels", low=16, high=256, step=16)
-        m5_kernel = trial.suggest_int("m5/kernel_size", low=3, high=5, step=2)
-        # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
-        m5_args = [m5_expand_ratio, m5_out_channel, m5_stride, m5_kernel]
     if not m5 == "Pass":
         if m5_stride == 2:
             n_stride += 1
@@ -268,7 +244,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
 
     # Module 6
     m6 = trial.suggest_categorical(
-        "m6", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+        "m6", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "Pass"]
     )
     m6_args = []
     m6_repeat = trial.suggest_int("m6/repeat", 1, 5)
@@ -303,12 +279,6 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m6_se = trial.suggest_categorical("m6/v3_se", [0, 1])
         m6_hs = trial.suggest_categorical("m6/v3_hs", [0, 1])
         m6_args = [m6_kernel, m6_t, m6_c, m6_se, m6_hs, m6_stride]
-    elif m6 == 'MBConv':
-        m6_expand_ratio = trial.suggest_categorical("m6/expand_ratio", [1, 6])
-        m6_out_channel = trial.suggest_int("m6/out_channels", low=16, high=512, step=16)
-        m6_kernel = trial.suggest_int("m6/kernel_size", low=3, high=5, step=2)
-        # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
-        m6_args = [m6_expand_ratio, m6_out_channel, m6_stride, m6_kernel]
     if not m6 == "Pass":
         if m6_stride == 2:
             n_stride += 1
@@ -318,7 +288,7 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
 
     # Module 7
     m7 = trial.suggest_categorical(
-        "m7", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "MBConv", "Pass"]
+        "m7", ["Conv", "DWConv", "InvertedResidualv2", "InvertedResidualv3", "Pass"]
     )
     m7_args = []
     m7_repeat = trial.suggest_int("m7/repeat", 1, 5)
@@ -354,12 +324,6 @@ def search_model(trial: optuna.trial.Trial) -> Tuple[List, Dict]:
         m7_se = trial.suggest_categorical("m7/v3_se", [0, 1])
         m7_hs = trial.suggest_categorical("m7/v3_hs", [0, 1])
         m7_args = [m7_kernel, m7_t, m7_c, m7_se, m7_hs, m7_stride]
-    elif m7 == 'MBConv':
-        m7_expand_ratio = trial.suggest_categorical("m7/expand_ratio", [1, 6])
-        m7_out_channel = trial.suggest_int("m7/out_channels", low=128, high=1024, step=128)
-        m7_kernel = trial.suggest_int("m7/kernel_size", low=3, high=5, step=2)
-        # MBConv args: [expand_ratio, out_channel, stride, kernel_size]
-        m7_args = [m7_expand_ratio, m7_out_channel, m7_stride, m7_kernel]
     if not m7 == "Pass":
         if m7_stride == 2:
             n_stride += 1
@@ -495,8 +459,8 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
         verbose=1,
         model_path=RESULT_MODEL_PATH,
     )
-    best_test_acc, best_test_f1 = trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
-    # loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
+    trainer.train(train_loader, hyperparams["EPOCHS"], val_dataloader=val_loader)
+    loss, f1_score, acc_percent = trainer.test(model, test_dataloader=val_loader)
     params_nums = count_model_params(model)
 
     model_info(model, verbose=True)
@@ -508,7 +472,7 @@ def objective(trial: optuna.trial.Trial, device) -> Tuple[float, int, float]:
 
     wandb.join()
 
-    return best_test_f1, params_nums, mean_time
+    return f1_score, params_nums, mean_time
 
 
 def get_best_trial_with_condition(optuna_study: optuna.study.Study) -> Dict[str, Any]:
@@ -632,7 +596,7 @@ def tune(args, gpu_id, storage: str = None):
         storage=rdb_storage,
         load_if_exists=True,
     )
-    study.optimize(lambda trial: objective(trial, device), n_trials=100)
+    study.optimize(lambda trial: objective(trial, device), n_trials=50)
 
     make_custom_configs(args)
 
@@ -683,7 +647,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpu", default=0, type=int, help="GPU id to use")
     parser.add_argument("--storage", default="postgresql://optuna:optuna@27.96.134.91:6011/optuna",
                         type=str, help="Optuna database storage path.")
-    parser.add_argument("--project_name", default="", type=str, help="wandb project name")
+    parser.add_argument("--project_name", default="raki-final-tune", type=str, help="wandb project name")
     parser.add_argument("--optuna_reset", default=False, type=bool, help="optuna study delete")
 
     args = parser.parse_args()
@@ -695,7 +659,7 @@ if __name__ == "__main__":
     os.environ['WANDB_WATCH'] = 'all'
     os.environ['WANDB_SILENT'] = "true"
 
-    set_seed(42)
+    # set_seed(42)
 
     # make_custom_configs(args)
 

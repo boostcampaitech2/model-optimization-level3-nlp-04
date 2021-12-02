@@ -73,13 +73,16 @@ def train(
 
     if args.td:
         # switch to the PyTorch backend
-        tl.set_backend('pytorch')
+        try:
+            tl.set_backend('pytorch')
+        except:
+            tl.set_backend('pytorch')
 
         for name, param in model_instance.model.named_modules():
             if isinstance(param, nn.Conv2d):
                 param.register_buffer('rank', torch.Tensor([0.5, 0.5]))  # rank in, out
 
-        model_instance.model.features = decompose(model_instance.model.features)
+        model_instance.model = decompose(model_instance.model)
 
     model_instance.model.to(device)
 
@@ -87,14 +90,19 @@ def train(
     train_dl, val_dl, test_dl = create_dataloader(data_config)
 
     # Create optimizer, scheduler, criterion
-    if data_config['OPTIMIZER_NAME'] == 'SGD':
+    try:
+        if data_config['OPTIMIZER_NAME'] == 'SGD':
+            optimizer = torch.optim.SGD(
+                model_instance.model.parameters(), lr=data_config["LR"], momentum=data_config['MOMENTUM']
+            )
+        elif data_config['OPTIMIZER_NAME'] == 'Adam':
+            optimizer = torch.optim.Adam(
+                model_instance.model.parameters(), lr=data_config['LR'],
+                betas=(data_config['BETA_1'], data_config['BETA_2'])
+            )
+    except:
         optimizer = torch.optim.SGD(
-            model_instance.model.parameters(), lr=data_config["LR"], momentum=data_config['MOMENTUM']
-        )
-    elif data_config['OPTIMIZER_NAME'] == 'Adam':
-        optimizer = torch.optim.Adam(
-            model_instance.model.parameters(), lr=data_config['LR'],
-            betas=(data_config['BETA_1'], data_config['BETA_2'])
+            model_instance.model.parameters(), lr=data_config["INIT_LR"], momentum=0.9
         )
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer=optimizer,
@@ -146,17 +154,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
         "--model",
-        default="configs/model/custom9.yaml",
+        default="configs/model/base_model.yaml",
         type=str,
         help="model config",
     )
     parser.add_argument(
         "--data",
-        default="configs/data/custom9.yaml",
+        default="configs/data/taco.yaml",
         type=str, help="data config"
     )
-    parser.add_argument("--project_name", default="raki-final-test", type=str, help="wandb project name")
-    parser.add_argument("--run_name", default="exp", type=str, help="wandb run name")
+    parser.add_argument("--project_name", default="raki_base_model_test", type=str, help="wandb project name")
+    parser.add_argument("--run_name", default="no_cutmix", type=str, help="wandb run name")
     parser.add_argument("--td", default=False, type=bool, help="whether use Tucker Decomposition")
 
     args = parser.parse_args()
@@ -176,7 +184,7 @@ if __name__ == "__main__":
 
     os.makedirs(log_dir, exist_ok=True)
 
-    set_seed(42)
+    # set_seed(42)
 
     test_loss, test_f1, test_acc = train(
         args=args,
