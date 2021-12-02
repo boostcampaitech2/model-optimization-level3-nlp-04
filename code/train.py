@@ -160,7 +160,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--data",
-        default="configs/data/taco.yaml",
+        default="configs/data/base_data.yaml",
         type=str, help="data config"
     )
     parser.add_argument("--project_name", default="raki_base_model_test", type=str, help="wandb project name")

@@ -584,7 +584,7 @@ def tune(args, gpu_id, storage: str = None):
     else:
         rdb_storage = None
 
-    study_name = 'automl102'
+    study_name = 'automl103'
 
     if args.optuna_reset:
         optuna.delete_study(study_name=study_name, storage=rdb_storage)
